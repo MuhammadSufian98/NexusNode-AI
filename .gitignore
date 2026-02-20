@@ -1,0 +1,15 @@
+# Dependencies
+**/node_modules/
+
+# Next.js builds
+frontend/.next/
+frontend/out/
+
+# Environment variables
+.env*
+frontend/.env*
+backend/.env*
+
+# OS files
+Thumbs.db
+.DS_Store
