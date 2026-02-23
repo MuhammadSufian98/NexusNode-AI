@@ -1,108 +1,123 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import Image from "next/image";
+import { Menu, X, ChevronRight, User } from "lucide-react";
 import GlassButton from "@/component/Button";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Handle scroll to shrink header height
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const navItems = [
-    { name: "How it works", link: "#how-it-works", type: "link" },
-    { name: "Features", link: "#features", type: "link" },
-    { name: "Pricing", link: "#pricing", type: "link" },
-    { name: "Sign In", link: "/auth", type: "button" },
+    { name: "How it works", link: "#how-it-works" },
+    { name: "Features", link: "#features" },
+    { name: "Pricing", link: "#pricing" },
   ];
 
   return (
-    <motion.header
-      animate={{
-        height: isScrolled ? "50px" : "70px",
-        backgroundColor: isScrolled
-          ? "rgba(255, 255, 255, 0.3)"
-          : "rgba(255, 255, 255, 0.15)",
-      }}
-      className="fixed top-0 w-full z-50 flex items-center justify-between px-10 backdrop-blur-lg border-b border-white/20 transition-all duration-300 shadow-lg"
-    >
-      {/* Logo Section */}
-      <div className="text-2xl font-bold tracking-tighter text-slate-900 italic">
-        Nexus <span className="text-blue-600">Node</span>
-      </div>
+    <div className="fixed top-0 w-full z-50 px-6 py-4 md:px-10 pointer-events-none">
+      <motion.header
+        initial={{ y: -100, opacity: 0 }}
+        animate={{
+          y: 0,
+          opacity: 1,
+          width: isScrolled ? "auto" : "100%",
+          maxWidth: "1200px",
+        }}
+        className={`mx-auto flex items-center justify-between px-6 md:px-10 pointer-events-auto transition-all duration-500 rounded-4xl border border-white/40 shadow-2xl shadow-rose-100/20 backdrop-blur-2xl ${
+          isScrolled ? "bg-white/60 py-3 mt-2" : "bg-white/30 py-5 mt-0"
+        }`}
+      >
+        {/* Logo Section using logo.png */}
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="relative w-10 h-10 group-hover:rotate-12 transition-transform duration-500">
+            <Image
+              src="/favicon/logo.png"
+              alt="NexusNode AI Logo"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          <span className="text-lg font-black tracking-tighter text-slate-900">
+            NexusNode<span className="text-rose-600">AI</span>
+          </span>
+        </Link>
 
-      {/* Navigation Array */}
-      <nav className="flex items-center gap-8">
-        {navItems.map((item, index) => {
-          // Check if the item is the "Sign In" button and the user is logged in
-          if (item.name === "Sign In") {
-            return isLoggedIn ? (
-              <div
-                key="profile"
-                className="w-10 h-10 rounded-full bg-linear-to-tr from-blue-400 to-purple-500 border border-white/40 cursor-pointer hover:scale-110 transition-transform"
-                title="Profile"
-              />
-            ) : (
-              <motion.div
-                key={index}
-                className="relative group"
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center gap-2">
+          <div className="flex items-center bg-slate-900/5 rounded-2xl p-1 border border-slate-200/20 backdrop-blur-md">
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                href={item.link}
+                className="px-5 py-2 text-[13px] font-bold text-slate-600 hover:text-rose-600 rounded-xl hover:bg-white/80 transition-all duration-300"
               >
-                <span className="absolute inset-0 bg-white/20 backdrop-blur-md rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                {item.name}
+              </Link>
+            ))}
+          </div>
 
-                {/* Sign In Button */}
-                <GlassButton
-                  className="text-sm px-4 py-2"
-                  onClick={() => setIsLoggedIn(true)}
-                >
-                  {item.name}
-                </GlassButton>
-              </motion.div>
-            );
-          }
+          <div className="h-6 w-px bg-slate-200 mx-2" />
 
-          return (
-            <motion.div
-              key={index}
-              className="relative group"
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 400, damping: 15 }}
-            >
-              <span className="absolute inset-0 bg-white/20 backdrop-blur-md rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300" />
+          <Link href="/dashboard">
+            <GlassButton className="text-[13px] font-black uppercase tracking-widest px-6 py-2.5 rounded-xl flex items-center gap-2 shadow-xl shadow-rose-100 bg-linear-to-r from-rose-600 to-orange-500 border-none text-white">
+              Launch App <ChevronRight size={14} />
+            </GlassButton>
+          </Link>
+        </nav>
 
-              {item.type === "button" ? (
-                <GlassButton
-                  className="text-sm px-4 py-2"
-                  onClick={() => setIsLoggedIn(!isLoggedIn)}
-                >
-                  {item.name}
-                </GlassButton>
-              ) : (
-                <a
+        {/* Mobile Toggle */}
+        <button
+          className="md:hidden p-2 text-slate-900"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X /> : <Menu />}
+        </button>
+      </motion.header>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="absolute top-24 inset-x-6 bg-white/90 backdrop-blur-3xl border border-slate-200 rounded-[2.5rem] p-8 shadow-2xl pointer-events-auto md:hidden"
+          >
+            <div className="flex flex-col gap-6 items-center">
+              {navItems.map((item) => (
+                <Link
+                  key={item.name}
                   href={item.link}
-                  className="relative px-4 py-2 text-sm font-medium transition-all rounded-full text-slate-800 group"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-xl font-bold text-slate-900 hover:text-rose-600"
                 >
-                  {/* Hover effect for the links */}
-                  <span className="absolute inset-0 bg-white/30 backdrop-blur-xl rounded-full opacity-0 group-hover:opacity-100 border border-white/50 transition-opacity -z-10" />
                   {item.name}
-                </a>
-              )}
-            </motion.div>
-          );
-        })}
-      </nav>
-    </motion.header>
+                </Link>
+              ))}
+              <hr className="w-full border-slate-100" />
+              <Link href="/dashboard" className="w-full">
+                <GlassButton className="w-full py-4 rounded-2xl flex items-center justify-center gap-2 bg-linear-to-r from-rose-600 to-orange-500 border-none text-white">
+                  <User size={18} /> Dashboard
+                </GlassButton>
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 

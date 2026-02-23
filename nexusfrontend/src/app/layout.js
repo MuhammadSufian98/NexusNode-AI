@@ -1,10 +1,6 @@
-"use client"; // We need this to use usePathname
-
 import { Geist, Geist_Mono } from "next/font/google";
-import { usePathname } from "next/navigation";
 import "./globals.css";
-import Header from "./header-footer/header";
-import Footer from "./header-footer/footer";
+import LayoutWrapper from "@/component/LayoutWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,24 +12,46 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+export const metadata = {
+  title: "NexusNode AI | Neural Document Intelligence",
+  description:
+    "Advanced RAG system for interacting with PDFs using neural vector mapping.",
+  keywords: ["AI", "PDF Chat", "RAG", "NexusNode", "Neural Retrieval"],
+  authors: [{ name: "Sufian" }],
+  // Fix: Use the shorthand "icon" property or an array of objects
+  // icons: {
+  //   icon: [
+  //     {
+  //       url: "/favicon/logo.png",
+  //       href: "/favicon/logo.png",
+  //     },
+  //   ],
+  //   apple: [
+  //     {
+  //       url: "/favicon/logo.png",
+  //       href: "/favicon/logo.png",
+  //     },
+  //   ],
+  // },
+  icons: {
+    icon: "/favicon/logo.png",
+  },
+};
+
 export default function RootLayout({ children }) {
-  const pathname = usePathname();
-
-  // Define routes where Header and Footer should be hidden
-  const isDashboard = pathname.startsWith("/dashboard");
-
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen bg-slate-50`}
       >
-        {/* Only render Header if NOT on dashboard */}
-        {!isDashboard && <Header />}
-
-        <main className="grow relative">{children}</main>
-
-        {/* Only render Footer if NOT on dashboard */}
-        {!isDashboard && <Footer />}
+        <LayoutWrapper>{children}</LayoutWrapper>
       </body>
     </html>
   );
