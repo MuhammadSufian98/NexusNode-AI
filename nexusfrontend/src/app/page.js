@@ -38,6 +38,23 @@ const PARTNERS = [
   },
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15, delayChildren: 0.2 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 100, damping: 20 },
+  },
+};
+
 export default function Home() {
   const router = useRouter();
 
@@ -66,44 +83,56 @@ export default function Home() {
       </div>
 
       <div className="relative z-10 w-full flex flex-col items-center">
-        <main className="flex flex-col items-center justify-center min-h-screen w-full max-w-7xl px-6 text-center pointer-events-none relative z-10 bg-transparent">
+        <main className="flex flex-col items-center justify-center min-h-dvh w-full max-w-[95%] md:max-w-7xl px-[5%] text-center pointer-events-none relative z-10 bg-transparent">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="flex flex-col items-center gap-6 md:gap-8"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="flex flex-col items-center gap-[3vh] md:gap-[4vh]"
           >
-            <span className="px-4 py-1.5 rounded-full border border-rose-100 bg-white/80 text-rose-600 text-xs sm:text-sm font-bold shadow-sm backdrop-blur-sm">
+            <motion.span
+              variants={itemVariants}
+              className="px-[4%] py-[1%] rounded-full border border-rose-100 bg-white/80 text-rose-600 text-[min(3.5vw,14px)] font-bold shadow-sm backdrop-blur-sm"
+            >
               Neural Retrieval Engine v1.0
-            </span>
+            </motion.span>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl xl:text-7xl font-black tracking-tight text-slate-900 leading-[1.05]">
+            <motion.h1
+              variants={itemVariants}
+              className="text-[clamp(2.2rem,9vw,5.5rem)] font-black tracking-tight text-slate-900 leading-[1.1] md:leading-[1.05]"
+            >
               Talk to your{" "}
               <span className="text-transparent bg-clip-text bg-linear-to-r from-rose-600 via-orange-500 to-yellow-500">
                 PDFs
               </span>
-            </h1>
+            </motion.h1>
 
-            <p className="max-w-sm sm:max-w-xl lg:max-w-3xl text-lg sm:text-xl lg:text-2xl xl:text-3xl leading-relaxed text-slate-600">
+            <motion.p
+              variants={itemVariants}
+              className="max-w-[90%] md:max-w-[75%] text-[clamp(1rem,4.5vw,1.6rem)] leading-relaxed text-slate-600"
+            >
               Your PDFs, Now With a Human Brain. The most advanced neural
               retrieval engine for your documents.
-            </p>
+            </motion.p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4 w-full sm:w-auto pointer-events-auto">
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-[3vh] w-full sm:w-auto pointer-events-auto"
+            >
               <GlassButton
                 variant="primary"
-                className="w-full sm:w-auto text-base lg:text-lg px-8 lg:px-10 py-3 lg:py-4 bg-linear-to-r from-rose-600 to-orange-500 border-none text-white shadow-lg shadow-rose-200"
+                className="w-full sm:w-auto text-[1.1rem] px-[10vw] sm:px-12 py-[1.2rem] bg-linear-to-r from-rose-600 to-orange-500 border-none text-white shadow-lg shadow-rose-200 hover:scale-105 active:scale-95 transition-all"
                 onClick={() => router.push("/dashboard")}
               >
                 Launch App
               </GlassButton>
               <GlassButton
                 variant="secondary"
-                className="w-full sm:w-auto text-base lg:text-lg px-8 lg:px-10 py-3 lg:py-4"
+                className="w-full sm:w-auto text-[1.1rem] px-[10vw] sm:px-12 py-[1.2rem] hover:bg-white transition-colors"
               >
                 Documentation
               </GlassButton>
-            </div>
+            </motion.div>
           </motion.div>
         </main>
 
