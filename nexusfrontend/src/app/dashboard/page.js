@@ -144,7 +144,7 @@ export default function Dashboard() {
       <main
         className={`flex-1 transition-all duration-500 ${sidebarOpen ? "ml-72" : "ml-0"} p-4`}
       >
-        <header className="h-20 bg-white/70 backdrop-blur-xl border border-slate-200/60 rounded-[2rem] flex items-center justify-between px-6 xl:px-8 mb-6 shadow-sm sticky top-4 z-30">
+        <header className="h-20 bg-white/70 backdrop-blur-xl border border-slate-200/60 rounded-4xl flex items-center justify-between px-6 xl:px-8 mb-6 shadow-sm sticky top-4 z-30">
           <div className="flex items-center gap-4 lg:gap-6">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -226,7 +226,7 @@ export default function Dashboard() {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-3 w-56 bg-white border border-slate-200 rounded-[2rem] shadow-2xl shadow-slate-200/50 p-3 overflow-hidden"
+                    className="absolute right-0 mt-3 w-56 bg-white border border-slate-200 rounded-4xl shadow-2xl shadow-slate-200/50 p-3 overflow-hidden"
                   >
                     <div className="px-4 py-3 mb-2 border-b border-slate-50">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -284,7 +284,7 @@ export default function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-100 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -292,7 +292,7 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="bg-white p-8 md:p-12 rounded-[3rem] text-center shadow-3xl border border-slate-100 max-w-sm w-full"
             >
-              <div className="w-20 h-20 bg-rose-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-rose-50 rounded-4xl flex items-center justify-center mx-auto mb-6">
                 <Upload className="text-rose-600 animate-bounce" size={32} />
               </div>
               <p className="text-lg font-black tracking-tight">

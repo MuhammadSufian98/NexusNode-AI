@@ -4,19 +4,23 @@ import { usePathname } from "next/navigation";
 import Header from "@/app/header-footer/header";
 import Footer from "@/app/header-footer/footer";
 import { GlobalProvider } from "@/context/globalContext";
+import { AuthProvider } from "@/context/authContext";
 
 export default function LayoutWrapper({ children }) {
   const pathname = usePathname();
 
-  const isDashboard = pathname.startsWith("/dashboard");
+  const isDashboard =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/auth/login");
 
   return (
     <GlobalProvider>
-      {!isDashboard && <Header />}
+      <AuthProvider>
+        {!isDashboard && <Header />}
 
-      <main className="grow relative">{children}</main>
+        <main className="grow relative">{children}</main>
 
-      {!isDashboard && <Footer />}
+        {!isDashboard && <Footer />}
+      </AuthProvider>
     </GlobalProvider>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,18 +8,22 @@ import {
   Menu,
   X,
   ChevronRight,
-  LayoutDashboard,
   Globe,
   Zap,
   Shield,
+  LayoutDashboard,
+  LogIn,
 } from "lucide-react";
 import GlassButton from "@/component/Button";
+import { useAuth } from "@/context/authContext";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Performance optimized scroll listener
+  // Destructure user from Auth Context
+  const { user } = useAuth();
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -28,13 +32,8 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Prevent body scroll when mobile menu is open
   useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    document.body.style.overflow = mobileMenuOpen ? "hidden" : "unset";
   }, [mobileMenuOpen]);
 
   const navItems = [
@@ -42,6 +41,31 @@ const Header = () => {
     { name: "Features", link: "#features", icon: <Shield size={18} /> },
     { name: "Pricing", link: "#pricing", icon: <Globe size={18} /> },
   ];
+
+  // Helper component to avoid repetition
+  const AuthButton = ({ mobile = false }) => (
+    <Link href={user ? "/dashboard" : "/auth/login"}>
+      <GlassButton
+        className={`${
+          mobile
+            ? "w-full py-4 rounded-2xl"
+            : "text-[12px] px-6 py-2.5 rounded-xl"
+        } font-bold uppercase tracking-wider flex items-center justify-center gap-2 bg-linear-to-r from-rose-600 to-orange-500 border-none text-white shadow-lg shadow-rose-200 hover:scale-105 active:scale-95 transition-all`}
+      >
+        {user ? (
+          <>
+            {mobile && <LayoutDashboard size={20} />} Launch App
+            <ChevronRight size={14} />
+          </>
+        ) : (
+          <>
+            Sign In
+            <LogIn size={14} />
+          </>
+        )}
+      </GlassButton>
+    </Link>
+  );
 
   return (
     <>
@@ -59,7 +83,7 @@ const Header = () => {
               : "bg-white/40 py-4 mt-0 max-w-7xl"
           }`}
         >
-          {/* LOGO SECTION */}
+          {/* LOGO */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="relative w-8 h-8 md:w-9 md:h-9 group-hover:rotate-12 transition-transform duration-500">
               <Image
@@ -75,7 +99,7 @@ const Header = () => {
             </span>
           </Link>
 
-          {/* DESKTOP NAVIGATION */}
+          {/* DESKTOP NAV */}
           <nav className="hidden md:flex items-center gap-6">
             <div className="flex items-center gap-1 bg-slate-900/5 rounded-2xl p-1 border border-slate-200/20">
               {navItems.map((item) => (
@@ -88,17 +112,12 @@ const Header = () => {
                 </Link>
               ))}
             </div>
-
-            <Link href="/dashboard">
-              <GlassButton className="text-[12px] font-bold uppercase tracking-wider px-6 py-2.5 rounded-xl flex items-center gap-2 bg-linear-to-r from-rose-600 to-orange-500 border-none text-white shadow-lg shadow-rose-200 hover:scale-105 active:scale-95 transition-all">
-                Launch App <ChevronRight size={14} />
-              </GlassButton>
-            </Link>
+            <AuthButton />
           </nav>
 
           {/* MOBILE TOGGLE */}
           <button
-            className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900/5 text-slate-900 active:scale-90 transition-transform"
+            className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900/5 text-slate-900"
             onClick={() => setMobileMenuOpen(true)}
           >
             <Menu size={24} />
@@ -106,11 +125,10 @@ const Header = () => {
         </motion.header>
       </div>
 
-      {/* MOBILE MENU DRAWER */}
+      {/* MOBILE MENU */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -118,8 +136,6 @@ const Header = () => {
               onClick={() => setMobileMenuOpen(false)}
               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-60 md:hidden"
             />
-
-            {/* Drawer */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -127,11 +143,11 @@ const Header = () => {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed top-0 right-0 bottom-0 w-[80%] max-w-xs bg-white z-70 shadow-2xl md:hidden flex flex-col"
             >
-              <div className="p-6 flex items-center justify-between border-b border-slate-50">
+              <div className="p-6 flex items-center justify-between border-b">
                 <span className="font-black text-slate-900">Navigation</span>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 bg-slate-50 rounded-lg text-slate-500"
+                  className="p-2 bg-slate-50 rounded-lg"
                 >
                   <X size={20} />
                 </button>
@@ -145,7 +161,7 @@ const Header = () => {
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-4 p-4 rounded-2xl hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold transition-colors group"
                   >
-                    <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-white text-slate-400 group-hover:text-rose-500 transition-colors">
+                    <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-white transition-colors">
                       {item.icon}
                     </div>
                     {item.name}
@@ -153,15 +169,8 @@ const Header = () => {
                 ))}
               </div>
 
-              <div className="p-6 border-t border-slate-50 bg-slate-50/50">
-                <Link
-                  href="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <GlassButton className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 bg-linear-to-r from-rose-600 to-orange-500 border-none text-white font-bold shadow-xl shadow-rose-100">
-                    <LayoutDashboard size={20} /> Launch Dashboard
-                  </GlassButton>
-                </Link>
+              <div className="p-6 border-t bg-slate-50/50">
+                <AuthButton mobile />
                 <p className="text-center text-[10px] text-slate-400 mt-4 font-medium uppercase tracking-[0.2em]">
                   NexusNode AI v1.0
                 </p>
