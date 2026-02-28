@@ -6,7 +6,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [authView, setAuthView] = useState("login"); // "login" or "signup"
+  const [authView, setAuthView] = useState("login");
   const [direction, setDirection] = useState(0);
 
   const switchView = (view) => {

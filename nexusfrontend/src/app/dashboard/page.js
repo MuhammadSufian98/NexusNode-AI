@@ -10,14 +10,13 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Upload,
   User,
   Menu,
   X,
   ChevronDown,
   Bell,
   Search,
-  ShieldCheck,
+  LogIn,
 } from "lucide-react";
 
 import { Toaster } from "react-hot-toast";
@@ -45,14 +44,20 @@ export default function Dashboard() {
     documents,
     selectedDocument,
     setSelectedDocument,
-    handleFileUpload,
     overviewData,
   } = useGlobal();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  // Close dropdown when clicking outside
+  // Auto-close sidebar on mobile after selection
+  const handleNavClick = (key) => {
+    setActiveSection(key);
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -63,105 +68,102 @@ export default function Dashboard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const menuItems = [
-    { label: "Profile", icon: User, color: "text-slate-600" },
-    {
-      label: "Settings",
-      icon: Settings,
-      color: "text-slate-600",
-      action: () => setActiveSection("settings"),
-    },
-    {
-      label: "Logout",
-      icon: LogOut,
-      color: "text-rose-600",
-      action: () => console.log("Logout Logic"),
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 selection:bg-rose-100">
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 selection:bg-rose-100 overflow-x-hidden">
       <Toaster position="top-right" />
 
-      {/* Sidebar */}
+      {/* Sidebar Overlay (Mobile Only) */}
       <AnimatePresence>
         {sidebarOpen && (
-          <motion.aside
-            initial={{ x: -280 }}
-            animate={{ x: 0 }}
-            exit={{ x: -280 }}
-            className="w-72 h-screen fixed left-0 top-0 z-40 p-4"
-          >
-            <div className="h-full bg-white/70 backdrop-blur-xl border border-slate-200 rounded-[2.5rem] shadow-xl shadow-slate-200/50 flex flex-col p-6">
-              <Link href="/" className="flex items-center gap-3 mb-10 group">
-                <div className="relative w-10 h-10 group-hover:rotate-12 transition-transform duration-500">
-                  <Image
-                    src="/favicon/logo.png"
-                    alt="Logo"
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-                <span className="text-xl font-black tracking-tighter">
-                  NexusNode<span className="text-rose-600">AI</span>
-                </span>
-              </Link>
-
-              <nav className="flex-1 space-y-2">
-                {sidebarItems.map((item) => (
-                  <button
-                    key={item.key}
-                    onClick={() => setActiveSection(item.key)}
-                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
-                      activeSection === item.key
-                        ? "bg-rose-50 text-rose-600 border border-rose-100 shadow-sm"
-                        : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
-                  >
-                    <item.icon size={20} />
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </nav>
-
-              <div className="mt-auto pt-6 border-t border-slate-100">
-                <label className="w-full py-4 bg-linear-to-r from-rose-600 to-orange-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shadow-lg shadow-rose-200 hover:scale-[1.02] transition-transform cursor-pointer">
-                  <Upload size={16} /> Upload PDF
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                    accept=".pdf"
-                  />
-                </label>
-              </div>
-            </div>
-          </motion.aside>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 lg:hidden"
+          />
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
-      <main
-        className={`flex-1 transition-all duration-500 ${sidebarOpen ? "ml-72" : "ml-0"} p-4`}
+      {/* Sidebar */}
+      <motion.aside
+        initial={false}
+        animate={{
+          x: sidebarOpen ? 0 : -320,
+          transition: { type: "spring", damping: 25, stiffness: 200 },
+        }}
+        className="fixed left-0 top-0 h-screen w-72 z-50 p-4 lg:p-6"
       >
-        <header className="h-20 bg-white/70 backdrop-blur-xl border border-slate-200/60 rounded-4xl flex items-center justify-between px-6 xl:px-8 mb-6 shadow-sm sticky top-4 z-30">
-          <div className="flex items-center gap-4 lg:gap-6">
+        <div className="h-full bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl lg:shadow-xl flex flex-col p-6">
+          <Link href="/" className="flex items-center gap-3 mb-10 group">
+            <div className="relative w-10 h-10 group-hover:rotate-12 transition-transform duration-500">
+              <Image
+                src="/favicon/logo.png"
+                alt="Logo"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <span className="text-xl font-black tracking-tighter">
+              NexusNode<span className="text-rose-600">AI</span>
+            </span>
+          </Link>
+
+          <nav className="flex-1 space-y-2">
+            {sidebarItems.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleNavClick(item.key)}
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+                  activeSection === item.key
+                    ? "bg-rose-50 text-rose-600 border border-rose-100 shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <item.icon size={20} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          {/* New Footer Section: Profile & Logout */}
+          <div className="mt-auto pt-4 space-y-2 border-t border-slate-100">
+            <button
+              onClick={() => handleNavClick("settings")}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 hover:bg-slate-50 transition-colors text-sm font-bold"
+            >
+              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                <User size={16} />
+              </div>
+              <span>Profile</span>
+            </button>
+            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-rose-600 hover:bg-rose-50 transition-colors text-sm font-bold">
+              <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center">
+                <LogOut size={16} />
+              </div>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </motion.aside>
+
+      {/* Main Content Area */}
+      <main
+        className={`flex-1 transition-all duration-500 w-full ${
+          sidebarOpen ? "lg:pl-80" : "pl-0"
+        } p-4 md:p-6 lg:p-8`}
+      >
+        <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-3xl md:rounded-4xl flex items-center justify-between px-4 md:px-8 mb-6 shadow-sm sticky top-4 z-30">
+          <div className="flex items-center gap-3 md:gap-6">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2.5 bg-white border border-slate-100 hover:border-rose-200 hover:text-rose-600 rounded-xl transition-all shadow-sm group"
+              className="p-2 md:p-2.5 bg-white border border-slate-100 hover:border-rose-200 hover:text-rose-600 rounded-xl transition-all shadow-sm"
             >
-              {sidebarOpen ? (
-                <X size={18} />
-              ) : (
-                <Menu
-                  size={18}
-                  className="group-hover:rotate-90 transition-transform"
-                />
-              )}
+              {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
 
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              <span className="xs:block text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 System / {activeSection}
               </span>
               <h1 className="text-lg xl:text-xl font-black tracking-tight text-slate-900">
@@ -170,10 +172,11 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="hidden md:flex items-center max-w-xs w-full mx-4">
+          {/* Responsive Search - Hidden on very small screens */}
+          <div className="hidden lg:flex items-center max-w-xs w-full mx-4">
             <div className="relative w-full group">
               <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 size={16}
               />
               <input
@@ -184,39 +187,37 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 lg:gap-5">
-            <div className="hidden sm:flex items-center gap-3 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-2xl">
-              <div className="relative">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping absolute inset-0" />
-                <div className="w-2 h-2 rounded-full bg-emerald-500 relative" />
-              </div>
-              <div className="flex flex-col leading-none">
+          <div className="flex items-center gap-2 md:gap-5">
+            {/* Engine Status - Simplified for Mobile */}
+            <div className="flex items-center gap-2 md:gap-3 bg-slate-50 border border-slate-100 px-2 md:px-3 py-1.5 rounded-2xl">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="hidden sm:flex flex-col leading-none">
                 <span className="text-[9px] font-black text-slate-900 uppercase">
-                  Live Index
+                  Live
                 </span>
                 <span className="text-[8px] font-bold text-slate-400">
-                  {overviewData.engineVersion}
+                  {overviewData.engineVersion || "v4.2"}
                 </span>
               </div>
             </div>
 
-            <button className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all relative">
+            <button className="hidden xs:flex p-2 md:p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all relative">
               <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 border-2 border-white rounded-full" />
+              <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-rose-500 border border-white rounded-full" />
             </button>
 
-            {/* User Dropdown */}
+            {/* Profile Pill */}
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 p-1 pr-3 bg-white border border-slate-200 hover:border-rose-200 rounded-2xl transition-all shadow-sm group"
+                className="flex items-center gap-2 p-1 md:pr-3 bg-white border border-slate-200 rounded-2xl transition-all shadow-sm"
               >
-                <div className="w-9 h-9 rounded-xl bg-linear-to-br from-rose-500 to-orange-400 flex items-center justify-center text-white shadow-md shadow-rose-200 group-hover:scale-105 transition-transform">
-                  <User size={18} />
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-linear-to-br from-rose-500 to-orange-400 flex items-center justify-center text-white">
+                  <User size={16} />
                 </div>
                 <ChevronDown
-                  size={14}
-                  className={`text-slate-400 transition-transform duration-300 ${isUserMenuOpen ? "rotate-180" : ""}`}
+                  size={12}
+                  className={`hidden md:block text-slate-400 transition-transform ${isUserMenuOpen ? "rotate-180" : ""}`}
                 />
               </button>
 
@@ -226,38 +227,28 @@ export default function Dashboard() {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-3 w-56 bg-white border border-slate-200 rounded-4xl shadow-2xl shadow-slate-200/50 p-3 overflow-hidden"
+                    className="absolute right-0 mt-3 w-48 md:w-56 bg-white border border-slate-200 rounded-3xl shadow-2xl p-2 z-50"
                   >
-                    <div className="px-4 py-3 mb-2 border-b border-slate-50">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Active Operator
+                    <div className="px-4 py-3 mb-1 border-b border-slate-50">
+                      <p className="text-[9px] font-black text-slate-400 uppercase">
+                        Operator
                       </p>
-                      <p className="text-sm font-black text-slate-900 truncate">
+                      <p className="text-xs font-black text-slate-900 truncate">
                         nexus.admin@node.ai
                       </p>
                     </div>
-                    <div className="space-y-1">
-                      {menuItems.map((item) => (
-                        <button
-                          key={item.label}
-                          onClick={() => {
-                            item.action?.();
-                            setIsUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group"
-                        >
-                          <item.icon
-                            size={16}
-                            className={`${item.color} group-hover:scale-110 transition-transform`}
-                          />
-                          <span
-                            className={`text-xs font-bold ${item.color.includes("rose") ? "text-rose-600" : "text-slate-700"}`}
-                          >
-                            {item.label}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                    <button
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="w-full flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors"
+                    >
+                      <User size={14} className="text-slate-400" /> Profile
+                    </button>
+                    <button
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="w-full flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-rose-50 text-xs font-bold text-rose-600 transition-colors"
+                    >
+                      <LogOut size={14} /> Sign Out
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -265,19 +256,22 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {activeSection === "dashboard" && <OverviewView />}
-        {activeSection === "documents" && <DocumentsView />}
-        {activeSection === "chat" && (
-          <NexusChatInterface
-            selectedDocument={selectedDocument}
-            setSelectedDocument={setSelectedDocument}
-            documents={documents}
-          />
-        )}
-        {activeSection === "settings" && <SettingsView />}
+        {/* View Rendering */}
+        <div className="max-w-400 mx-auto">
+          {activeSection === "dashboard" && <OverviewView />}
+          {activeSection === "documents" && <DocumentsView />}
+          {activeSection === "chat" && (
+            <NexusChatInterface
+              selectedDocument={selectedDocument}
+              setSelectedDocument={setSelectedDocument}
+              documents={documents}
+            />
+          )}
+          {activeSection === "settings" && <SettingsView />}
+        </div>
       </main>
 
-      {/* Upload Overlay Integrated with Global State */}
+      {/* Shared Upload Overlay */}
       <AnimatePresence>
         {isUploading && (
           <motion.div
@@ -287,25 +281,20 @@ export default function Dashboard() {
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-100 flex items-center justify-center p-4"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white p-8 md:p-12 rounded-[3rem] text-center shadow-3xl border border-slate-100 max-w-sm w-full"
             >
-              <div className="w-20 h-20 bg-rose-50 rounded-4xl flex items-center justify-center mx-auto mb-6">
-                <Upload className="text-rose-600 animate-bounce" size={32} />
+              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <FileText className="text-rose-600 animate-pulse" size={28} />
               </div>
-              <p className="text-lg font-black tracking-tight">
-                Indexing Knowledge...
-              </p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase mt-2 tracking-[0.2em]">
-                Neural Vector Mapping
-              </p>
+              <p className="font-black">Indexing Knowledge...</p>
               <button
                 onClick={() => setIsUploading(false)}
-                className="mt-8 text-[9px] font-black uppercase text-slate-300 hover:text-rose-600 transition-colors"
+                className="mt-6 text-[10px] font-black text-slate-300 hover:text-rose-600 uppercase"
               >
-                Cancel Process
+                Cancel
               </button>
             </motion.div>
           </motion.div>

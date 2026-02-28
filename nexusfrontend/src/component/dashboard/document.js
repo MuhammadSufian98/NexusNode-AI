@@ -53,7 +53,7 @@ export default function DocumentsView() {
   };
 
   return (
-    <div className="h-full max-h-[calc(100vh-140px)] flex flex-col gap-4 lg:gap-6 p-2 lg:p-4 overflow-hidden select-none">
+    <div className="h-full max-h-[calc(95vh-140px)] flex flex-col gap-4 lg:gap-6 p-2 lg:p-4 overflow-hidden select-none">
       {/* --- HEADER SECTION --- */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 shrink-0 px-2">
         <div className="flex flex-col gap-1">
