@@ -14,8 +14,25 @@ import {
   Layers,
   CheckCircle2,
   Clock,
+  Shield,
 } from "lucide-react";
-import { useGlobal } from "@/context/globalContext";
+import { useGlobal } from "@/store/globalStore";
+
+const getStatusBadge = (status) => {
+  if (status === "redacting") {
+    return {
+      label: "Shielding",
+      className: "bg-amber-50 text-amber-600 animate-pulse",
+      icon: Shield,
+    };
+  }
+
+  return {
+    label: "Secure",
+    className: "bg-emerald-50 text-emerald-600",
+    icon: CheckCircle2,
+  };
+};
 
 export default function DocumentsView() {
   const {
@@ -134,7 +151,7 @@ export default function DocumentsView() {
                 layout
                 variants={itemVariants}
                 exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                className="group relative bg-white border border-slate-200 p-4 lg:p-6 rounded-4xl lg:rounded-[3rem] shadow-sm hover:shadow-2xl hover:shadow-rose-500/5 hover:-translate-y-1 transition-all flex flex-col justify-between overflow-hidden"
+                className={`group relative bg-white border border-slate-200 p-4 lg:p-6 rounded-4xl lg:rounded-[3rem] shadow-sm hover:shadow-2xl hover:shadow-rose-500/5 hover:-translate-y-1 transition-all flex flex-col justify-between overflow-hidden ${doc.status === "redacting" ? "opacity-75" : ""}`}
               >
                 <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-rose-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
@@ -147,10 +164,10 @@ export default function DocumentsView() {
                       <button className="p-1.5 text-slate-300 hover:text-slate-600 transition-colors">
                         <MoreVertical size={16} />
                       </button>
-                      <div className="flex items-center gap-1 text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
-                        <CheckCircle2 size={8} />
+                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full shrink-0 ${getStatusBadge(doc.status).className}`}>
+                        {React.createElement(getStatusBadge(doc.status).icon, { size: 8 })}
                         <span className="text-[7px] lg:text-[8px] font-black uppercase">
-                          Indexed
+                          {getStatusBadge(doc.status).label}
                         </span>
                       </div>
                     </div>
@@ -182,10 +199,12 @@ export default function DocumentsView() {
                   <div className="flex gap-1.5 lg:gap-2 w-full sm:w-auto">
                     <button
                       onClick={() => {
+                        if (doc.status === "redacting") return;
                         setSelectedDocument(doc);
                         setActiveSection("chat");
                       }}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 lg:px-5 py-2 lg:py-2.5 bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-700 rounded-xl text-[9px] lg:text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                      disabled={doc.status === "redacting"}
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 lg:px-5 py-2 lg:py-2.5 rounded-xl text-[9px] lg:text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${doc.status === "redacting" ? "bg-slate-100 text-slate-300 cursor-not-allowed" : "bg-slate-100 hover:bg-rose-600 hover:text-white text-slate-700"}`}
                     >
                       <MessageSquare size={12} />
                       Chat

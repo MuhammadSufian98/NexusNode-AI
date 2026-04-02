@@ -17,7 +17,7 @@ import {
   Zap,
   Waves,
 } from "lucide-react";
-import { useGlobal } from "@/context/globalContext";
+import { useGlobal } from "@/store/globalStore";
 
 export default function NexusChatInterface() {
   const {

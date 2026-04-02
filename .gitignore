@@ -13,3 +13,5 @@ backend/.env*
 # OS files
 Thumbs.db
 .DS_Store
+
+README_AGENT.md

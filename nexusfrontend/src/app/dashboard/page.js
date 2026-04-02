@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 import { Toaster } from "react-hot-toast";
-import { useGlobal } from "@/context/globalContext";
+import { useGlobal } from "@/store/globalStore";
 import NexusChatInterface from "@/component/dashboard/NexusChat";
 import SettingsView from "@/component/dashboard/Setting";
 import OverviewView from "@/component/dashboard/overView";
@@ -150,8 +150,8 @@ export default function Dashboard() {
       {/* Main Content Area */}
       <main
         className={`flex-1 transition-all duration-500 w-full ${
-          sidebarOpen ? "lg:pl-80" : "pl-0"
-        } p-4 md:p-6 lg:p-8`}
+          sidebarOpen ? "lg:pl-70" : "pl-0"
+        } p-1 md:p-2 lg:p-4`}
       >
         <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-3xl md:rounded-4xl flex items-center justify-between px-4 md:px-8 mb-6 shadow-sm sticky top-4 z-30">
           <div className="flex items-center gap-3 md:gap-6">

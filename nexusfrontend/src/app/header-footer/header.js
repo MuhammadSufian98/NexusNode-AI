@@ -15,7 +15,7 @@ import {
   LogIn,
 } from "lucide-react";
 import GlassButton from "@/component/Button";
-import { useAuth } from "@/context/authContext";
+import { useAuth } from "@/store/authStore";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);

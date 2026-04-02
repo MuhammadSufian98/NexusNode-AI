@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/context/authContext";
+import { useAuth } from "@/store/authStore";
 import Image from "next/image";
 import Link from "next/link";
 import Antigravity from "@/component/Antigravity";
@@ -126,7 +126,7 @@ const AuthPage = () => {
               transition={transition}
               className="w-full lg:w-1/2 flex items-center justify-center p-4"
             >
-              <div className="w-full max-w-[22rem] p-6 lg:p-8 bg-white/20 backdrop-blur-xl border border-white/80 shadow-2xl rounded-[2.5rem]">
+              <div className="w-full max-w-88 p-6 lg:p-8 bg-white/20 backdrop-blur-xl border border-white/80 shadow-2xl rounded-[2.5rem]">
                 <header className="mb-6">
                   <div className="w-9 h-9 bg-rose-600 rounded-lg flex items-center justify-center mb-3 shadow-lg shadow-rose-200">
                     <Fingerprint className="text-white" size={20} />
@@ -212,7 +212,7 @@ const AuthPage = () => {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="w-full max-w-[22rem] p-6 lg:p-8 bg-white/40 backdrop-blur-xl border border-white/80 shadow-2xl rounded-[2.5rem]"
+                    className="w-full max-w-88 p-6 lg:p-8 bg-white/40 backdrop-blur-xl border border-white/80 shadow-2xl rounded-[2.5rem]"
                   >
                     <header className="mb-6 text-right lg:text-left">
                       <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center mb-3 shadow-lg shadow-orange-200 ml-auto lg:ml-0">
@@ -254,7 +254,7 @@ const AuthPage = () => {
                       />
                       <GlassButton
                         type="submit"
-                        className="w-full py-3 bg-gradient-to-r from-rose-600 to-orange-500 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-lg mt-2 hover:scale-[1.02] transition-transform group"
+                        className="w-full py-3 bg-linear-to-r from-rose-600 to-orange-500 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-lg mt-2 hover:scale-[1.02] transition-transform group"
                       >
                         Register{" "}
                         <Zap
@@ -282,7 +282,7 @@ const AuthPage = () => {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="w-full max-w-[22rem] p-6 lg:p-8 bg-white/40 backdrop-blur-xl border border-white/80 shadow-2xl rounded-[2.5rem]"
+                    className="w-full max-w-88 p-6 lg:p-8 bg-white/40 backdrop-blur-xl border border-white/80 shadow-2xl rounded-[2.5rem]"
                   >
                     <header className="mb-6 text-right lg:text-left">
                       <button
@@ -435,7 +435,7 @@ const ContentCarousel = ({ mode }) => {
       >
         <CheckCircle2 className="text-white" size={28} />
       </motion.div>
-      <div className="min-h-[100px]">
+      <div className="min-h-25">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeStep}
