@@ -8,6 +8,9 @@ export default function GlassButton({
   variant = "primary",
   className = "",
   onClick,
+  type = "button",
+  disabled = false,
+  ...rest
 }) {
   const uniqueId = useId().replace(/:/g, "-");
   const filterId = `glass-filter-${uniqueId}`;
@@ -26,6 +29,8 @@ export default function GlassButton({
 
   return (
     <motion.button
+      type={type}
+      disabled={disabled}
       onClick={onClick}
       whileHover={{ scale: 1.03, y: -2 }}
       whileTap={{ scale: 0.97 }}
@@ -40,6 +45,7 @@ export default function GlassButton({
         backdropFilter: `url(#${filterId}) saturate(1.5)`,
         WebkitBackdropFilter: `url(#${filterId}) saturate(1.5)`,
       }}
+      {...rest}
     >
       <svg className="absolute inset-0 w-0 h-0 pointer-events-none">
         <defs>

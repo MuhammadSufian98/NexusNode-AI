@@ -60,9 +60,11 @@ const FloatingFooter = () => {
                 <div className="relative w-12 h-12 hover:rotate-15 transition-transform duration-500">
                   <Image
                     src="/favicon/logo.png"
-                    alt="Logo"
+                    alt="NexusNode AI Logo"
                     fill
+                    sizes="40px"
                     className="object-contain"
+                    priority
                   />
                 </div>
                 <span className="text-2xl font-black text-slate-900 tracking-tighter">

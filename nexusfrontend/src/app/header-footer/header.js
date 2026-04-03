@@ -88,8 +88,9 @@ const Header = () => {
             <div className="relative w-8 h-8 md:w-9 md:h-9 group-hover:rotate-12 transition-transform duration-500">
               <Image
                 src="/favicon/logo.png"
-                alt="Logo"
+                alt="NexusNode AI Logo"
                 fill
+                sizes="40px"
                 className="object-contain"
                 priority
               />

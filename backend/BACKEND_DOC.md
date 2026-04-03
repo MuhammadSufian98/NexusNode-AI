@@ -1,0 +1,254 @@
+# NexusNode AI Backend API
+
+## Base URL
+
+- Development: `http://localhost:5000`
+
+## Auth Domain Endpoints
+
+### 1) POST /api/auth/verify-email
+
+Generates and emails a 6-digit OTP to verify ownership of an email address.
+
+Request body:
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+Success response (`200`):
+
+```json
+{
+  "message": "Verification code sent to email",
+  "expires_in_seconds": 300
+}
+```
+
+Error response (`400`):
+
+```json
+{
+  "message": "Valid email is required"
+}
+```
+
+### 2) POST /api/auth/register
+
+Registers a new user after validating OTP from `TempCode` collection.
+
+Request body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "StrongPass123",
+  "full_name": "User Name",
+  "code": "123456"
+}
+```
+
+Success response (`201`):
+
+```json
+{
+  "message": "Registration successful",
+  "user": {
+    "id": "67ee8a4d1b27f8326d8f0abc",
+    "email": "user@example.com",
+    "full_name": "User Name"
+  }
+}
+```
+
+Error response (`400`):
+
+```json
+{
+  "message": "Invalid or expired OTP code"
+}
+```
+
+### 3) POST /api/auth/login
+
+Authenticates user credentials and sets JWT in HttpOnly cookie.
+
+Request body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "StrongPass123"
+}
+```
+
+Success response (`200`):
+
+```json
+{
+  "message": "Login successful",
+  "user": {
+    "id": "67ee8a4d1b27f8326d8f0abc",
+    "email": "user@example.com",
+    "full_name": "User Name"
+  }
+}
+```
+
+Cookie set on success:
+
+- Name: `token`
+- Options: `httpOnly: true`, `secure: true`, `sameSite: 'strict'`
+
+Error response (`401`):
+
+```json
+{
+  "message": "Invalid credentials"
+}
+```
+
+### 4) GET /api/auth/me
+
+Protected endpoint that validates token cookie and returns session user.
+
+Request:
+
+- Requires cookie: `token`
+
+Success response (`200`):
+
+```json
+{
+  "id": "67ee8a4d1b27f8326d8f0abc",
+  "email": "user@example.com",
+  "full_name": "User Name",
+  "isVerified": true,
+  "avatar": "",
+  "clearance": "Lvl 4",
+  "nodesCount": 0
+}
+```
+
+Error response (`401`):
+
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+### 5) PATCH /api/auth/profile
+
+Protected endpoint for updating profile identity fields.
+
+Request:
+
+- Requires cookie: `token`
+
+Request body:
+
+```json
+{
+  "full_name": "Updated Name",
+  "email": "updated@example.com"
+}
+```
+
+Behavior notes:
+
+- `full_name` is optional, but must be 2-120 characters when provided.
+- `email` is optional, but must be valid when provided.
+- If email changes, backend sets `isVerified` to `false` and automatically sends a fresh OTP to the new address.
+
+Success response (`200`):
+
+```json
+{
+  "message": "Profile updated. Verification code sent to new email",
+  "emailVerificationRequired": true,
+  "user": {
+    "id": "67ee8a4d1b27f8326d8f0abc",
+    "email": "updated@example.com",
+    "full_name": "Updated Name",
+    "isVerified": false,
+    "avatar": "",
+    "clearance": "Lvl 4",
+    "nodesCount": 0
+  }
+}
+```
+
+Error response (`409`):
+
+```json
+{
+  "message": "Email already in use"
+}
+```
+
+### 6) POST /api/auth/avatar
+
+Protected endpoint to upload and set a user avatar.
+
+Request:
+
+- Requires cookie: `token`
+- Content-Type: `multipart/form-data`
+- Form field: `avatar` (file)
+
+Success response (`200`):
+
+```json
+{
+  "message": "Avatar uploaded successfully",
+  "user": {
+    "id": "67ee8a4d1b27f8326d8f0abc",
+    "email": "user@example.com",
+    "full_name": "User Name",
+    "isVerified": true,
+    "avatar": "http://localhost:5000/uploads/avatars/<file-name>.png",
+    "clearance": "Lvl 4",
+    "nodesCount": 0
+  }
+}
+```
+
+Error response (`400`):
+
+```json
+{
+  "message": "Avatar file is required"
+}
+```
+
+## Security Protocol
+
+- HttpOnly cookie for JWT:
+  Prevents direct JavaScript access to auth tokens in the browser, reducing XSS token theft risk.
+- Bcrypt password hashing:
+  Passwords are never stored in plaintext; `bcrypt` produces one-way hashes resistant to rainbow table attacks.
+- Sensitive field protection:
+  `pwd_hash` is never returned in API responses.
+
+## Environment Variables
+
+Use `.env` template values and replace for production:
+
+```env
+PORT=5000
+MONGO_URI=mongodb+srv://dummy_user:dummy_pass@cluster.mongodb.net/nexus_dummy
+JWT_SECRET=dummy_secret_key_99887766
+GMAIL_USER=example_user@gmail.com
+GMAIL_PASS=xxxx_xxxx_xxxx_xxxx
+FRONTEND_URL=http://localhost:3000
+GEMINI_API_KEY=dummy_gemini_api_key
+```
+
+## Privacy Guardian Check
+
+For every new auth-protected backend endpoint, apply this check:
+
+- Does this endpoint handle sensitive data that must pass through Privacy Guardian redaction middleware before indexing/vectorization?

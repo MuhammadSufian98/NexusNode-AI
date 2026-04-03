@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Home,
   FileText,
@@ -21,10 +22,12 @@ import {
 
 import { Toaster } from "react-hot-toast";
 import { useGlobal } from "@/store/globalStore";
+import { useAuth } from "@/store/authStore";
 import NexusChatInterface from "@/component/dashboard/NexusChat";
 import SettingsView from "@/component/dashboard/Setting";
 import OverviewView from "@/component/dashboard/overView";
 import DocumentsView from "@/component/dashboard/document";
+import Profile from "@/component/dashboard/profile";
 
 const sidebarItems = [
   { key: "dashboard", icon: Home, label: "Dashboard" },
@@ -34,6 +37,7 @@ const sidebarItems = [
 ];
 
 export default function Dashboard() {
+  const router = useRouter();
   const {
     activeSection,
     setActiveSection,
@@ -46,6 +50,7 @@ export default function Dashboard() {
     setSelectedDocument,
     overviewData,
   } = useGlobal();
+  const { user, logout } = useAuth();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -67,6 +72,11 @@ export default function Dashboard() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleSignOut = async () => {
+    await logout();
+    router.push("/auth");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 selection:bg-rose-100 overflow-x-hidden">
@@ -99,9 +109,11 @@ export default function Dashboard() {
             <div className="relative w-10 h-10 group-hover:rotate-12 transition-transform duration-500">
               <Image
                 src="/favicon/logo.png"
-                alt="Logo"
+                alt="NexusNode AI Logo"
                 fill
+                sizes="40px"
                 className="object-contain"
+                priority
               />
             </div>
             <span className="text-xl font-black tracking-tighter">
@@ -129,7 +141,7 @@ export default function Dashboard() {
           {/* New Footer Section: Profile & Logout */}
           <div className="mt-auto pt-4 space-y-2 border-t border-slate-100">
             <button
-              onClick={() => handleNavClick("settings")}
+              onClick={() => handleNavClick("profile")}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 hover:bg-slate-50 transition-colors text-sm font-bold"
             >
               <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
@@ -137,7 +149,10 @@ export default function Dashboard() {
               </div>
               <span>Profile</span>
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-rose-600 hover:bg-rose-50 transition-colors text-sm font-bold">
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-rose-600 hover:bg-rose-50 transition-colors text-sm font-bold"
+            >
               <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center">
                 <LogOut size={16} />
               </div>
@@ -234,7 +249,7 @@ export default function Dashboard() {
                         Operator
                       </p>
                       <p className="text-xs font-black text-slate-900 truncate">
-                        nexus.admin@node.ai
+                        {user?.email || "Unknown"}
                       </p>
                     </div>
                     <button
@@ -244,7 +259,10 @@ export default function Dashboard() {
                       <User size={14} className="text-slate-400" /> Profile
                     </button>
                     <button
-                      onClick={() => setIsUserMenuOpen(false)}
+                      onClick={async () => {
+                        setIsUserMenuOpen(false);
+                        await handleSignOut();
+                      }}
                       className="w-full flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-rose-50 text-xs font-bold text-rose-600 transition-colors"
                     >
                       <LogOut size={14} /> Sign Out
@@ -260,6 +278,7 @@ export default function Dashboard() {
         <div className="max-w-400 mx-auto">
           {activeSection === "dashboard" && <OverviewView />}
           {activeSection === "documents" && <DocumentsView />}
+          {activeSection === "profile" && <Profile />}
           {activeSection === "chat" && (
             <NexusChatInterface
               selectedDocument={selectedDocument}

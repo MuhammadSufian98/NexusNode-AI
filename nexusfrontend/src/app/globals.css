@@ -24,3 +24,27 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.form-input-container {
+  position: relative;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.form-input-container:focus-within {
+  border-color: #e11d48;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.05);
+}
+
+.form-input-field {
+  width: 100%;
+  padding: 0.65rem 1rem 0.65rem 2.8rem;
+  background: transparent;
+  outline: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #0f172a;
+}

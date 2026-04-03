@@ -9,7 +9,6 @@ const documentSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  // This must match the 'path' you set in your Atlas Vector Search Index
   embedding: {
     type: [Number],
     required: true,
@@ -23,6 +22,5 @@ const documentSchema = new mongoose.Schema({
   },
 });
 
-// Export the model
 const Document = mongoose.model("Document", documentSchema);
 export default Document;

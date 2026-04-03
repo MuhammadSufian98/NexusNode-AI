@@ -194,7 +194,7 @@ export default function OverviewView() {
         {/* RIGHT: TOPIC CLUSTERS (SEMANTIC MAP) */}
         <motion.div
           variants={cardVariants}
-          className="bg-white border border-slate-200 rounded-[2.5rem] p-5 shadow-sm flex flex-col relative overflow-hidden"
+          className="bg-white border border-slate-200 rounded-[2.5rem] p-5 shadow-sm flex flex-col relative overflow-hidden min-w-0"
         >
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 flex items-center gap-2">
@@ -203,7 +203,8 @@ export default function OverviewView() {
             <Sparkles size={12} className="text-amber-400 animate-pulse" />
           </div>
 
-          <div className="flex-1 min-h-0 flex items-center justify-center">
+          <div className="flex-1 min-h-0 min-w-0 flex items-center justify-center">
+            <div className="w-full h-56 min-h-55 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="70%" data={topicData}>
                 <PolarGrid stroke="#f1f5f9" />
@@ -220,6 +221,7 @@ export default function OverviewView() {
                 />
               </RadarChart>
             </ResponsiveContainer>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-4">

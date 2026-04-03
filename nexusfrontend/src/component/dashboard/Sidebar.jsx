@@ -74,11 +74,13 @@ export default function Sidebar({ activeSection, sidebarOpen, setSidebarOpen, on
             <motion.div layout className="flex items-center gap-3 px-2">
               <div className="relative w-10 h-10 shrink-0">
                 <Image
-                  src="/favicon/logo.png"
-                  alt="Logo"
-                  fill
-                  className="object-contain"
-                />
+                              src="/favicon/logo.png"
+                              alt="NexusNode AI Logo"
+                              fill
+                              sizes="40px"
+                              className="object-contain"
+                              priority
+                            />
               </div>
               <AnimatePresence mode="popLayout">
                 {!isRail && (

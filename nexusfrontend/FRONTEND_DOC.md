@@ -74,21 +74,33 @@ The global store owns dashboard state, document vault state, and chat state.
 | `handleDeleteDoc(id)` | Removes a document and clears the selected document if needed. |
 | `sendMessage(text)` | Adds a user message and simulates an assistant response with sources. |
 
-## 4. Route Pages
+## 4. Shared State Management
 
-### 4.1 `src/app/layout.js`
+### 4.1 Zustand Migration
+
+- [🟢] **Zustand Migration (Completed):** Decoupled UI state logic from the component tree by establishing atomic stores for auth and dashboard state. Both `authStore.js` and `globalStore.js` are fully operational and used across the frontend.
+  - Auth state (login/signup view switching, user session) managed by `useAuth()` hook.
+  - Dashboard state (section routing, sidebar, documents, chat, uploads) managed by `useGlobal()` hook.
+  - All components (Dashboard, Chat, Documents, Overview, Settings) now consume Zustand stores instead of React Context.
+  - Previous context files (`authContext.js`, `globalContext.js`) have been removed.
+
+---
+
+## 5. Route Pages
+
+### 5.1 `src/app/layout.js`
 
 | Function | Purpose |
 | --- | --- |
 | `RootLayout({ children })` | Defines the HTML shell, fonts, metadata, and wraps the app in the shared layout wrapper. |
 
-### 4.2 `src/component/LayoutWrapper.js`
+### 5.2 `src/component/LayoutWrapper.js`
 
 | Function | Purpose |
 | --- | --- |
 | `LayoutWrapper({ children })` | Shows the public header and footer on public routes and hides them on dashboard/auth routes. |
 
-### 4.3 `src/app/page.js`
+### 5.3 `src/app/page.js`
 
 | Function | Purpose |
 | --- | --- |
@@ -96,7 +108,7 @@ The global store owns dashboard state, document vault state, and chat state.
 | `FeatureCard({ feature, index })` | Animated feature tile used in the landing page feature section. |
 | `handleMouseMove({ currentTarget, clientX, clientY })` | Tracks pointer position inside a feature card for the glow effect. |
 
-### 4.4 `src/app/auth/login/page.js`
+### 5.4 `src/app/auth/login/page.js`
 
 | Function | Purpose |
 | --- | --- |
@@ -107,7 +119,7 @@ The global store owns dashboard state, document vault state, and chat state.
 | `ContentCarousel({ mode })` | Rotating side-panel content that changes between login and signup themes. |
 | `FormInput({ icon, label, placeholder, type, isPassword, showPass, setShowPass })` | Shared input component for login and signup forms. |
 
-### 4.5 `src/app/dashboard/page.js`
+### 5.5 `src/app/dashboard/page.js`
 
 | Function | Purpose |
 | --- | --- |
@@ -115,21 +127,21 @@ The global store owns dashboard state, document vault state, and chat state.
 | `handleNavClick(key)` | Updates the active dashboard section and closes the sidebar on mobile. |
 | `handleClickOutside(event)` | Closes the user menu when clicking outside it. |
 
-## 5. Dashboard Components
+## 6. Dashboard Components
 
-### 5.1 `src/component/dashboard/overView.js`
+### 6.1 `src/component/dashboard/overView.js`
 
 | Function | Purpose |
 | --- | --- |
 | `OverviewView()` | Dashboard overview screen refactored to an intelligence-only layout with compact metrics, semantic search focus, and analytics visuals. |
 
-### 5.2 `src/component/dashboard/document.js`
+### 6.2 `src/component/dashboard/document.js`
 
 | Function | Purpose |
 | --- | --- |
 | `DocumentsView()` | Document vault screen with search, upload, delete, and chat launch actions. |
 
-### 5.3 `src/component/dashboard/NexusChat.js`
+### 6.3 `src/component/dashboard/NexusChat.js`
 
 | Function | Purpose |
 | --- | --- |
@@ -138,15 +150,15 @@ The global store owns dashboard state, document vault state, and chat state.
 | `closeDoc()` | Clears the current document selection and returns to the document list. |
 | `handleSend()` | Sends the current input text to the store and clears the input. |
 
-### 5.4 `src/component/dashboard/Setting.js`
+### 6.4 `src/component/dashboard/Setting.js`
 
 | Function | Purpose |
 | --- | --- |
 | `SettingsView()` | Settings panel for model/provider selection and vault actions. |
 
-## 6. Shared UI Components
+## 7. Shared UI Components
 
-### 6.1 `src/component/Button.js`
+### 7.1 `src/component/Button.js`
 
 | Function | Purpose |
 | --- | --- |

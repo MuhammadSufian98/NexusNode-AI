@@ -3,88 +3,14 @@
 import { create } from "zustand";
 import { toast } from "react-hot-toast";
 
-const createInitialDocuments = () => [
-  {
-    id: 1,
-    name: "Architecture_V1.pdf",
-    size: "2.4MB",
-    pages: 12,
-    uploadedAt: new Date(),
-    status: "redacting",
-  },
-  {
-    id: 2,
-    name: "Neural_Weights.pdf",
-    size: "1.1MB",
-    pages: 5,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-  {
-    id: 3,
-    name: "API_Spec.pdf",
-    size: "850KB",
-    pages: 24,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-  {
-    id: 4,
-    name: "Machine_Learning_Models.pdf",
-    size: "3.2MB",
-    pages: 40,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-  {
-    id: 5,
-    name: "Data_Analysis_Report.pdf",
-    size: "1.8MB",
-    pages: 15,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-  {
-    id: 6,
-    name: "Deep_Learning_Notes.pdf",
-    size: "2.0MB",
-    pages: 30,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-  {
-    id: 7,
-    name: "Cloud_Architecture_Guide.pdf",
-    size: "2.7MB",
-    pages: 22,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-  {
-    id: 8,
-    name: "Quantum_Computing_Overview.pdf",
-    size: "3.4MB",
-    pages: 18,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-  {
-    id: 9,
-    name: "Artificial_Intelligence_Research.pdf",
-    size: "4.0MB",
-    pages: 50,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-  {
-    id: 10,
-    name: "Blockchain_Technology.pdf",
-    size: "5.1MB",
-    pages: 35,
-    uploadedAt: new Date(),
-    status: "ready",
-  },
-];
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.BACKEND_URL ||
+  "http://localhost:5000"
+).replace(/\/$/, "");
+
+const createInitialDocuments = () => [];
 
 export const useGlobal = create((set, get) => ({
   activeSection: "dashboard",
@@ -95,13 +21,13 @@ export const useGlobal = create((set, get) => ({
   messages: [],
   isProcessing: false,
   overviewData: {
-    docsIndexed: "3",
+    docsIndexed: "0",
     engineVersion: "v4.2-stable",
-    contextDepth: 88,
-    spaceUsed: "4.2GB",
-    maskedPII: "842",
-    chunks: "12,402",
-    velocityData: [40, 70, 45, 90, 65, 80, 30, 95, 50, 75],
+    contextDepth: 0,
+    spaceUsed: "0GB",
+    maskedPII: "0",
+    chunks: "0",
+    velocityData: [],
   },
   setActiveSection: (activeSection) => set({ activeSection }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
@@ -115,20 +41,34 @@ export const useGlobal = create((set, get) => ({
       overviewData:
         typeof updater === "function" ? updater(state.overviewData) : updater,
     })),
-  handleFileUpload: (e) => {
+  handleFileUpload: async (e) => {
     const file = e.target?.files ? e.target.files[0] : null;
+    if (!file) return;
 
     set({ isUploading: true });
 
-    setTimeout(() => {
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+
+      const response = await fetch(`${API_BASE_URL}/api/rag/upload`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
       const currentDocuments = get().documents;
       const newDoc = {
         id: Date.now(),
-        name: file ? file.name : "new-analysis.pdf",
-        size: file ? `${(file.size / 1024 / 1024).toFixed(1)}MB` : "1.2MB",
-        pages: Math.floor(Math.random() * 20) + 1,
+        name: file.name,
+        size: `${(file.size / 1024 / 1024).toFixed(1)}MB`,
+        pages: 0,
         uploadedAt: new Date(),
-        status: "redacting",
+        status: "ready",
       };
 
       set({
@@ -137,19 +77,14 @@ export const useGlobal = create((set, get) => ({
           ...get().overviewData,
           docsIndexed: (currentDocuments.length + 1).toString(),
         },
-        isUploading: false,
       });
 
-      setTimeout(() => {
-        const refreshedDocuments = get().documents.map((doc) =>
-          doc.id === newDoc.id ? { ...doc, status: "ready" } : doc,
-        );
-
-        set({ documents: refreshedDocuments });
-      }, 1200);
-
       toast.success("Document indexed!");
-    }, 2000);
+    } catch (error) {
+      toast.error(error.message || "Upload failed");
+    } finally {
+      set({ isUploading: false });
+    }
   },
   handleDeleteDoc: (id) => {
     const { documents, selectedDocument } = get();
@@ -159,8 +94,10 @@ export const useGlobal = create((set, get) => ({
     });
     toast.error("Document removed");
   },
-  sendMessage: (text) => {
+  sendMessage: async (text) => {
     if (!text.trim()) return;
+    const selectedDocument = get().selectedDocument;
+    if (!selectedDocument) return;
 
     const userMsg = { id: Date.now().toString(), role: "user", content: text };
     set((state) => ({
@@ -168,21 +105,38 @@ export const useGlobal = create((set, get) => ({
       isProcessing: true,
     }));
 
-    setTimeout(() => {
-      const selectedDocument = get().selectedDocument;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/rag/search`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: text, generateResponse: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to retrieve response");
+      }
+
+      const payload = await response.json();
       set((state) => ({
         messages: [
           ...state.messages,
           {
             id: (Date.now() + 1).toString(),
             role: "assistant",
-            content: `I've analyzed the content in ${selectedDocument?.name || "the vault"}. Based on the neural map, the core concept involves specialized vector embeddings.`,
-            sources: [{ page: Math.floor(Math.random() * 5) + 1 }],
+            content:
+              payload?.answer || "I could not generate a response at this time.",
+            sources: [{ page: 1 }],
           },
         ],
         isProcessing: false,
       }));
       toast.success("Insight retrieved!");
-    }, 1200);
+    } catch (error) {
+      set({ isProcessing: false });
+      toast.error(error.message || "Message failed");
+    }
   },
 }));

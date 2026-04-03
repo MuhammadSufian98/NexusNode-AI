@@ -1,9 +1,6 @@
 import express from "express";
 import multer from "multer";
-import {
-  uploadAndProcessPDF,
-  searchChunks,
-} from "../controllers/ragController.js";
+import { uploadAndProcessPDF, searchChunks } from "./rag.controller.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
