@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_BASE_URL = (
-  process.env.BACKEND_URL ||
+const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
   "http://localhost:5000"
 ).replace(/\/$/, "");
 
@@ -16,7 +14,7 @@ export async function middleware(request) {
 
   try {
     const cookieHeader = request.headers.get("cookie") || "";
-    const meResponse = await fetch(`${BACKEND_BASE_URL}/api/auth/me`, {
+    const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
       method: "GET",
       headers: {
         Cookie: cookieHeader,

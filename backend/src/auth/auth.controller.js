@@ -12,7 +12,6 @@ const SIX_DIGIT_CODE_MAX = 999999;
 const OTP_TTL_MS = 5 * 60 * 1000;
 const APP_ENV = (
   process.env.APP_ENV ||
-  process.env.NODE_ENV ||
   "development"
 ).toLowerCase();
 const IS_PRODUCTION = APP_ENV === "production";
@@ -229,7 +228,7 @@ export const login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: IS_PRODUCTION,
-      sameSite: "strict",
+      sameSite: IS_PRODUCTION ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -264,7 +263,7 @@ export const logout = async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: IS_PRODUCTION,
-    sameSite: "strict",
+    sameSite: IS_PRODUCTION ? "none" : "lax",
   });
   console.log("[AUTH][LOGOUT] Session cookie cleared");
   return res.status(200).json({ message: "Logout successful" });
@@ -381,7 +380,7 @@ export const avatar = async (req, res) => {
 
     const backendPublicBase = (
       process.env.BACKEND_PUBLIC_URL ||
-      `http://localhost:${process.env.PORT || 5000}`
+      "http://localhost:5000"
     ).replace(/\/$/, "");
 
     const avatarUrl = `${backendPublicBase}/uploads/avatars/${fileName}`;

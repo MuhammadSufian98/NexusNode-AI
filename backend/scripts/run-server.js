@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 
 const appEnv = (
   process.env.APP_ENV ||
-  process.env.NODE_ENV ||
   "development"
 ).toLowerCase();
 
