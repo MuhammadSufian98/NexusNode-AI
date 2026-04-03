@@ -12,8 +12,14 @@ import TempCode from "./src/auth/tempCode.model.js";
 import Document from "./src/rag/documents.model.js";
 
 const app = express();
-const PORT = Number(process.env.PORT) || 5000;
+const PORT = Number(process.env.PORT) || 10000;
+const HOST = "0.0.0.0";
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || "NexusNode";
+const APP_ENV = (
+  process.env.APP_ENV ||
+  process.env.NODE_ENV ||
+  "development"
+).toLowerCase();
 
 app.use(helmet());
 app.use(
@@ -43,10 +49,15 @@ app.get("/", (req, res) => {
   res.json({ status: "ok", message: "NexusNode AI Backend is running" });
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "healthy" });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/rag", ragRoutes);
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+  console.log(`🧪 APP_ENV=${APP_ENV}`);
   console.log(`🧭 Expected Mongo DB name: ${MONGO_DB_NAME}`);
 });

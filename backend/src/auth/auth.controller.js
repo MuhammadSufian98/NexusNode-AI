@@ -10,6 +10,12 @@ import TempCode from "./tempCode.model.js";
 const SIX_DIGIT_CODE_MIN = 100000;
 const SIX_DIGIT_CODE_MAX = 999999;
 const OTP_TTL_MS = 5 * 60 * 1000;
+const APP_ENV = (
+  process.env.APP_ENV ||
+  process.env.NODE_ENV ||
+  "development"
+).toLowerCase();
+const IS_PRODUCTION = APP_ENV === "production";
 
 const mailTransporter = nodemailer.createTransport({
   service: "gmail",
@@ -219,11 +225,10 @@ export const login = async (req, res) => {
     }
 
     const token = signToken(user);
-    const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: isProduction,
+      secure: IS_PRODUCTION,
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -256,10 +261,9 @@ export const me = async (req, res) => {
 };
 
 export const logout = async (req, res) => {
-  const isProduction = process.env.NODE_ENV === "production";
   res.clearCookie("token", {
     httpOnly: true,
-    secure: isProduction,
+    secure: IS_PRODUCTION,
     sameSite: "strict",
   });
   console.log("[AUTH][LOGOUT] Session cookie cleared");

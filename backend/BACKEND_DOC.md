@@ -238,6 +238,7 @@ Error response (`400`):
 Use `.env` template values and replace for production:
 
 ```env
+APP_ENV=development
 PORT=5000
 MONGO_URI=mongodb+srv://dummy_user:dummy_pass@cluster.mongodb.net/nexus_dummy
 JWT_SECRET=dummy_secret_key_99887766
@@ -246,6 +247,11 @@ GMAIL_PASS=xxxx_xxxx_xxxx_xxxx
 FRONTEND_URL=http://localhost:3000
 GEMINI_API_KEY=dummy_gemini_api_key
 ```
+
+Runtime mode:
+
+- `APP_ENV=development` -> uses `nodemon` runner when using `npm run dev`.
+- `APP_ENV=production` -> uses plain `node` runner (safe for Render production runtime).
 
 ## Privacy Guardian Check
 
