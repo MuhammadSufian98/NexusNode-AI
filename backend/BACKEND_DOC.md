@@ -239,13 +239,13 @@ Use `.env` template values and replace for production:
 
 ```env
 APP_ENV=development
-PORT=5000
-MONGO_URI=mongodb+srv://dummy_user:dummy_pass@cluster.mongodb.net/nexus_dummy
-JWT_SECRET=dummy_secret_key_99887766
-GMAIL_USER=example_user@gmail.com
-GMAIL_PASS=xxxx_xxxx_xxxx_xxxx
-FRONTEND_URL=http://localhost:3000
-GEMINI_API_KEY=dummy_gemini_api_key
+PORT=<backend_port>
+MONGO_URI=<your_mongodb_connection_string>
+JWT_SECRET=<your_jwt_secret>
+GMAIL_USER=<your_email_account>
+GMAIL_PASS=<your_email_app_password>
+FRONTEND_URL=<your_frontend_origin>
+GEMINI_API_KEY=<your_gemini_api_key>
 ```
 
 Runtime mode:

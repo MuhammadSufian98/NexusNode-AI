@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import morgan from "morgan";
 
 // Route Imports
 import authRoutes from "./src/auth/auth.routes.js";
@@ -22,6 +23,8 @@ const HOST = "0.0.0.0";
 const MONGO_URI = process.env.MONGO_URI;
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || "NexusNode";
 const APP_ENV = (process.env.APP_ENV || "development").toLowerCase();
+
+const internalLog = (...args) => console.log("[INTERNAL]", ...args);
 
 // --- CORS STRATEGY ---
 const normalizeOrigin = (value = "") => value.replace(/\/+$/, "");
@@ -67,6 +70,7 @@ const corsOptions = {
 
 // --- MIDDLEWARE ---
 app.use(helmet());
+app.use(morgan("dev"));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
@@ -77,14 +81,14 @@ const connectDB = async () => {
   try {
     await mongoose.connect(MONGO_URI, { dbName: MONGO_DB_NAME });
 
-    console.log("------------------------------------------------");
-    console.log(
+    internalLog("------------------------------------------------");
+    internalLog(
       `🍃 DATABASE: Connected to Atlas | [${mongoose.connection.name}]`,
     );
-    console.log(
+    internalLog(
       `📊 STATUS: users(${User.collection.name}), docs(${Document.collection.name})`,
     );
-    console.log("------------------------------------------------");
+    internalLog("------------------------------------------------");
   } catch (err) {
     console.error("❌ MONGODB ERROR:", err.message);
     process.exit(1);
@@ -109,11 +113,11 @@ const startServer = async () => {
   await connectDB();
 
   app.listen(PORT, HOST, () => {
-    console.log(`🚀 NEXUSNODE CORE LIVE`);
-    console.log(`📡 URL: http://${HOST}:${PORT}`);
-    console.log(`🌍 MODE: ${APP_ENV.toUpperCase()}`);
-    console.log(`🛡️  CORS: ${ALLOWED_ORIGINS.join(" | ")}`);
-    console.log("------------------------------------------------");
+    internalLog(`🚀 NEXUSNODE CORE LIVE`);
+    internalLog(`📡 URL: http://${HOST}:${PORT}`);
+    internalLog(`🌍 MODE: ${APP_ENV.toUpperCase()}`);
+    internalLog(`🛡️  CORS: ${ALLOWED_ORIGINS.join(" | ")}`);
+    internalLog("------------------------------------------------");
   });
 };
 
