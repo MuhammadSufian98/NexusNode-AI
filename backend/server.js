@@ -24,25 +24,40 @@ const MONGO_DB_NAME = process.env.MONGO_DB_NAME || "NexusNode";
 const APP_ENV = (process.env.APP_ENV || "development").toLowerCase();
 
 // --- CORS STRATEGY ---
+const normalizeOrigin = (value = "") => value.replace(/\/+$/, "");
+
 const ALLOWED_ORIGINS = (process.env.FRONTEND_URLS || "http://localhost:3000")
   .split(",")
   .map((o) => o.trim())
+  .map((origin) => normalizeOrigin(origin))
   .filter(Boolean);
+
+const isAllowedOrigin = (origin = "") => {
+  const cleanedOrigin = normalizeOrigin(origin);
+
+  if (!cleanedOrigin) return false;
+
+  if (ALLOWED_ORIGINS.includes(cleanedOrigin)) {
+    return true;
+  }
+
+  return /\.vercel\.app$/.test(cleanedOrigin) || /\.onrender\.com$/.test(cleanedOrigin);
+};
 
 const corsOptions = {
   origin: (origin, callback) => {
     // 1. Allow internal/server-to-server (no origin)
     if (!origin) return callback(null, true);
 
-    // 2. Check Whitelist or Render Preview URLs
-    const isWhitelisted = ALLOWED_ORIGINS.includes(origin);
-    const isRenderPreview = /^https:\/\/.*\.onrender\.com$/.test(origin);
+    const cleanedOrigin = normalizeOrigin(origin);
 
-    if (isWhitelisted || isRenderPreview) {
+    if (isAllowedOrigin(cleanedOrigin)) {
       callback(null, true);
     } else {
-      console.error(`🛑 CORS Blocked: ${origin}`);
-      callback(new Error(`CORS policy does not allow access from ${origin}`));
+      console.error(`[CORS][BLOCKED] ${cleanedOrigin}`);
+      callback(
+        new Error(`CORS policy does not allow access from ${cleanedOrigin}`),
+      );
     }
   },
   credentials: true,

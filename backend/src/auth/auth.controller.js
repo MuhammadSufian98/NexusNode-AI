@@ -10,14 +10,15 @@ import TempCode from "./tempCode.model.js";
 const SIX_DIGIT_CODE_MIN = 100000;
 const SIX_DIGIT_CODE_MAX = 999999;
 const OTP_TTL_MS = 5 * 60 * 1000;
-const APP_ENV = (
-  process.env.APP_ENV ||
-  "development"
-).toLowerCase();
+const APP_ENV = (process.env.APP_ENV || "development").toLowerCase();
 const IS_PRODUCTION = APP_ENV === "production";
 
 const mailTransporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_PASS,
@@ -86,12 +87,58 @@ const sendVerificationCode = async (email, contextLabel = "VERIFY_EMAIL") => {
     },
   );
 
-  await mailTransporter.sendMail({
-    from: process.env.GMAIL_USER,
-    to: email,
-    subject: "NexusNode AI - Email Verification Code",
-    text: `Your verification code is ${otpCode}. It expires in 5 minutes.`,
-  });
+  console.log("[AUTH][VERIFY_EMAIL] Attempting SMTP handshake...");
+
+  try {
+    await mailTransporter.sendMail({
+      from: `"NexusNode AI" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: "🔐 Secure Access: Your Neural Verification Code",
+      text: `Your NexusNode AI verification code is ${otpCode}. It expires in 5 minutes.`,
+      html: `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; padding: 40px 20px; color: #1e293b;">
+            <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+              
+              <div style="background: linear-gradient(135deg, #e11d48 0%, #f97316 100%); padding: 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 900; letter-spacing: -1px;">NexusNode<span style="opacity: 0.8;">AI</span></h1>
+              </div>
+
+              <div style="padding: 40px; text-align: center;">
+                <div style="background-color: #fff1f2; color: #e11d48; display: inline-block; padding: 8px 16px; border-radius: 99px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px;">
+                  Security Protocol Active
+                </div>
+                
+                <h2 style="margin: 0 0 10px 0; font-size: 20px; color: #0f172a;">Verify Your Identity</h2>
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 30px; line-height: 1.5;">
+                  An operator has requested access to the NexusNode network. Use the neural code below to authorize this session.
+                </p>
+
+                <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 16px; padding: 20px; margin-bottom: 30px;">
+                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #0f172a;">
+                    ${otpCode}
+                  </span>
+                </div>
+
+                <p style="color: #94a3b8; font-size: 11px; margin-bottom: 0;">
+                  This code will expire in <strong style="color: #e11d48;">5 minutes</strong>. <br>
+                  If you did not request this, please ignore this email.
+                </p>
+              </div>
+
+              <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #f1f5f9;">
+                <p style="color: #cbd5e1; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0;">
+                  Shielding Your Neural Data &copy; 2026 NexusNode AI
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+    });
+    console.log("[AUTH][VERIFY_EMAIL] SUCCESS: SMTP handshake completed");
+  } catch (error) {
+    console.error(`[AUTH][VERIFY_EMAIL] FAIL: ${error.message}`);
+    throw error;
+  }
 };
 
 export const requireAuth = async (req, res, next) => {
@@ -130,8 +177,9 @@ export const verifyEmail = async (req, res) => {
       expires_in_seconds: 300,
     });
   } catch (error) {
-    console.error("[AUTH][VERIFY_EMAIL] Failed:", error.message);
-    return res.status(500).json({ message: "Failed to send verification code" });
+    return res
+      .status(500)
+      .json({ message: "Failed to send verification code" });
   }
 };
 
@@ -206,10 +254,14 @@ export const login = async (req, res) => {
     const password = req.body?.password || "";
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email }).select("_id email full_name pwd_hash");
+    const user = await User.findOne({ email }).select(
+      "_id email full_name pwd_hash",
+    );
     if (!user) {
       console.warn(
         `[AUTH][LOGIN] User not found for ${maskEmail(email)} | collection=${User.collection.name}`,
@@ -379,8 +431,7 @@ export const avatar = async (req, res) => {
     await fs.writeFile(path.join(avatarsDir, fileName), req.file.buffer);
 
     const backendPublicBase = (
-      process.env.BACKEND_PUBLIC_URL ||
-      "http://localhost:5000"
+      process.env.BACKEND_PUBLIC_URL || "http://localhost:5000"
     ).replace(/\/$/, "");
 
     const avatarUrl = `${backendPublicBase}/uploads/avatars/${fileName}`;
