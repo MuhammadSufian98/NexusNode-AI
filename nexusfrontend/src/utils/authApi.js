@@ -1,7 +1,4 @@
-const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:5000"
-).replace(/\/$/, "");
+import API_BASE_URL from "@/lib/apiBaseUrl";
 
 async function request(path, options = {}) {
   const isFormDataBody =
