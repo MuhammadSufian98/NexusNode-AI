@@ -25,29 +25,21 @@ export const metadata = {
     "Advanced RAG system for interacting with PDFs using neural vector mapping.",
   keywords: ["AI", "PDF Chat", "RAG", "NexusNode", "Neural Retrieval"],
   authors: [{ name: "Sufian" }],
-  // Fix: Use the shorthand "icon" property or an array of objects
-  // icons: {
-  //   icon: [
-  //     {
-  //       url: "/favicon/logo.png",
-  //       href: "/favicon/logo.png",
-  //     },
-  //   ],
-  //   apple: [
-  //     {
-  //       url: "/favicon/logo.png",
-  //       href: "/favicon/logo.png",
-  //     },
-  //   ],
-  // },
   icons: {
     icon: "/favicon/logo.png",
+    shortcut: "/favicon/logo.png",
+    apple: "/favicon/logo.png",
   },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/favicon/logo.png" sizes="any" />
+        <link rel="shortcut icon" href="/favicon/logo.png" />
+        <link rel="apple-touch-icon" href="/favicon/logo.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen bg-slate-50`}
       >

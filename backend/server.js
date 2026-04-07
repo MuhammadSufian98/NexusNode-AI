@@ -8,6 +8,7 @@ import morgan from "morgan";
 
 // Route Imports
 import authRoutes from "./src/auth/auth.routes.js";
+import profileRoutes from "./src/profile/profile.routes.js";
 import ragRoutes from "./src/rag/rag.routes.js";
 
 // Model Imports (for logging verification)
@@ -74,7 +75,6 @@ app.use(morgan("dev"));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
-app.use("/uploads", express.static("uploads"));
 
 // --- DATABASE CONNECTION ---
 const connectDB = async () => {
@@ -101,6 +101,7 @@ app.get("/health", (req, res) =>
 );
 
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
 app.use("/api/rag", ragRoutes);
 
 // Root Fallback

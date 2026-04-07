@@ -110,7 +110,7 @@ Error response (`401`):
 }
 ```
 
-### 4) GET /api/auth/me
+### 4) GET /api/profile/me
 
 Protected endpoint that validates token cookie and returns session user.
 
@@ -126,7 +126,8 @@ Success response (`200`):
   "email": "user@example.com",
   "full_name": "User Name",
   "isVerified": true,
-  "avatar": "",
+  "avatar": "data:image/png;base64,...",
+  "avatarUrl": "data:image/png;base64,...",
   "clearance": "Lvl 4",
   "nodesCount": 0
 }
@@ -140,7 +141,7 @@ Error response (`401`):
 }
 ```
 
-### 5) PATCH /api/auth/profile
+### 5) PATCH /api/profile
 
 Protected endpoint for updating profile identity fields.
 
@@ -174,7 +175,7 @@ Success response (`200`):
     "email": "updated@example.com",
     "full_name": "Updated Name",
     "isVerified": false,
-    "avatar": "",
+    "avatar": "data:image/png;base64,...",
     "clearance": "Lvl 4",
     "nodesCount": 0
   }
@@ -189,7 +190,7 @@ Error response (`409`):
 }
 ```
 
-### 6) POST /api/auth/avatar
+### 6) POST /api/profile/avatar
 
 Protected endpoint to upload and set a user avatar.
 
@@ -198,6 +199,18 @@ Request:
 - Requires cookie: `token`
 - Content-Type: `multipart/form-data`
 - Form field: `avatar` (file)
+
+Storage behavior:
+
+- The file is read into memory and stored in MongoDB Atlas as Base64 data.
+- The `User.avatar` field now contains:
+
+```json
+{
+  "data": "<base64-string>",
+  "contentType": "image/png"
+}
+```
 
 Success response (`200`):
 
@@ -209,7 +222,7 @@ Success response (`200`):
     "email": "user@example.com",
     "full_name": "User Name",
     "isVerified": true,
-    "avatar": "http://localhost:5000/uploads/avatars/<file-name>.png",
+    "avatar": "data:image/png;base64,...",
     "clearance": "Lvl 4",
     "nodesCount": 0
   }
@@ -232,6 +245,9 @@ Error response (`400`):
   Passwords are never stored in plaintext; `bcrypt` produces one-way hashes resistant to rainbow table attacks.
 - Sensitive field protection:
   `pwd_hash` is never returned in API responses.
+- Avatar field shape:
+  Avatar data is stored in MongoDB Atlas and returned to clients as a data URL string.
+- Profile clients can reuse the authenticated session state and only call `/api/profile/me` when hydration or refresh is required.
 
 ## Environment Variables
 

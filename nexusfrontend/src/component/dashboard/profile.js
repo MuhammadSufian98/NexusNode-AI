@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   User,
@@ -34,6 +35,12 @@ export default function Profile() {
     setEmailDraft(user?.email || "");
   }, [user?.name, user?.email]);
 
+  useEffect(() => {
+    if (user?.avatarUrl) {
+      console.log("[PROFILE][AVATAR_URL]", user.avatarUrl);
+    }
+  }, [user?.avatarUrl]);
+
   const handleSave = async (event) => {
     event.preventDefault();
     const result = await updateProfile({
@@ -56,6 +63,7 @@ export default function Profile() {
 
     const result = await uploadAvatar(file);
     if (result) {
+      console.log("[PROFILE][AVATAR_UPLOAD]", result?.user?.avatarUrl || result?.user?.avatar || "");
       toast.success("Avatar Updated");
     }
     event.target.value = "";
@@ -90,11 +98,14 @@ export default function Profile() {
             onChange={handleAvatarUpload}
           />
           <div className="w-28 h-28 rounded-3xl bg-slate-900 flex items-center justify-center text-white text-4xl font-black shadow-2xl relative overflow-hidden group/avatar">
-            {user?.avatar ? (
-              <img
-                src={user.avatar}
+            {user?.avatarUrl || user?.avatar ? (
+              <Image
+                src={user.avatarUrl || user.avatar}
                 alt="Profile avatar"
-                className="absolute inset-0 w-full h-full object-cover"
+                fill
+                sizes="112px"
+                className="object-cover"
+                unoptimized
               />
             ) : (
               <User size={48} />

@@ -180,6 +180,7 @@ export const useAuth = create((set, get) => ({
   },
 
   hydrateSession: async () => {
+    if (get().hydrated && get().authChecked) return get().user;
     if (get().hydrated) return get().user;
     return get().fetchMe();
   },

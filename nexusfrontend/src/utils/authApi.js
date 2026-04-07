@@ -50,7 +50,7 @@ export async function loginUser({ email, password }) {
 }
 
 export async function getCurrentUser() {
-  return request("/api/auth/me", {
+  return request("/api/profile/me", {
     method: "GET",
   });
 }
@@ -62,7 +62,7 @@ export async function logoutUser() {
 }
 
 export async function updateUserProfile({ full_name, email }) {
-  return request("/api/auth/profile", {
+  return request("/api/profile", {
     method: "PATCH",
     body: JSON.stringify({ full_name, email }),
   });
@@ -72,7 +72,7 @@ export async function uploadUserAvatar(file) {
   const formData = new FormData();
   formData.append("avatar", file);
 
-  return request("/api/auth/avatar", {
+  return request("/api/profile/avatar", {
     method: "POST",
     body: formData,
   });

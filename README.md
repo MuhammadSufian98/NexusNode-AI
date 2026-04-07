@@ -7,8 +7,8 @@ NexusNode AI is a privacy-first Retrieval-Augmented Generation platform designed
 NexusNode AI runs on a 100% JavaScript stack:
 
 - Frontend: Next.js 16 with React App Router workflows.
-- Backend: Node.js with Express APIs for authentication and RAG pipelines.
-- Database: MongoDB Atlas for user, session, and document metadata.
+- Backend: Node.js with Express APIs for authentication, profile management, and RAG pipelines.
+- Database: MongoDB Atlas for user, session, profile, and document metadata.
 
 The interface follows the Symmetry Protocol design approach, tuned for high-density dashboard viewing with a 1240x464 optimization target. This gives the project a predictable visual rhythm for live demonstrations and high-focus operator tasks.
 
@@ -19,6 +19,13 @@ Privacy Guardian is the primary system differentiator.
 - Every sensitive document flow is designed to pass through a PII-awareness layer before vectorization.
 - Redaction-first processing prevents direct leakage of personally identifiable information into embedding workflows.
 - The architecture intentionally treats privacy controls as a mandatory pipeline stage, not an optional add-on.
+
+## 🧩 Backend Modules
+
+- Auth routes handle OTP verification, registration, login, logout, and session cookies.
+- Profile routes handle `/api/profile/me`, profile updates, and avatar uploads.
+- Avatar data is stored directly in MongoDB Atlas as Base64 content with MIME metadata.
+- Profile responses expose an `avatarUrl` data URL so the frontend can render it directly with `next/image`.
 
 ## 🛡️ Security Model
 
@@ -60,7 +67,7 @@ Expected local endpoints:
 ## 🧭 Repository Structure
 
 ```text
-backend/        Express API, auth, and RAG services
+backend/        Express API, auth, profile, and RAG services
 nexusfrontend/  Next.js frontend and dashboard UI
 README_AGENT.md Internal engineering protocol and sprint memory
 ```

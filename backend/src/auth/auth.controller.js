@@ -1,8 +1,6 @@
 import bcrypt from "bcrypt";
-import fs from "node:fs/promises";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import path from "node:path";
 
 import User from "./auth.model.js";
 import TempCode from "./tempCode.model.js";
@@ -46,19 +44,19 @@ const maskEmail = (email = "") => {
   return `${visible}${"*".repeat(Math.max(localPart.length - 2, 1))}@${domain}`;
 };
 
-const sanitizeFileName = (value = "") =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+const avatarToDataUrl = (avatar = null) => {
+  if (!avatar) return "";
+  if (typeof avatar === "string") return avatar;
+  if (!avatar.data || !avatar.contentType) return "";
+  return `data:${avatar.contentType};base64,${avatar.data}`;
+};
 
 const publicUser = (user) => ({
   id: String(user._id),
   email: user.email,
   full_name: user.full_name,
   isVerified: Boolean(user.isVerified),
-  avatar: user.avatar || "",
+  avatar: avatarToDataUrl(user.avatar),
   clearance: user.clearance || "Lvl 4",
   nodesCount: Number(user.nodesCount || 0),
 });
@@ -298,19 +296,6 @@ export const login = async (req, res) => {
   }
 };
 
-export const me = async (req, res) => {
-  console.log(
-    `[AUTH][ME] Session validated id=${req.user._id} email=${maskEmail(req.user.email)}`,
-  );
-  const user = await User.findById(req.user._id).select(
-    "_id email full_name isVerified avatar clearance nodesCount",
-  );
-  if (!user) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  return res.status(200).json(publicUser(user));
-};
-
 export const logout = async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
@@ -319,146 +304,4 @@ export const logout = async (req, res) => {
   });
   console.log("[AUTH][LOGOUT] Session cookie cleared");
   return res.status(200).json({ message: "Logout successful" });
-};
-
-export const profile = async (req, res) => {
-  try {
-    const full_name = (req.body?.full_name || "").trim();
-    const nextEmailRaw = req.body?.email;
-    const hasNameUpdate = typeof req.body?.full_name === "string";
-    const hasEmailUpdate = typeof nextEmailRaw === "string";
-
-    if (!hasNameUpdate && !hasEmailUpdate) {
-      return res
-        .status(400)
-        .json({ message: "At least one field is required to update profile" });
-    }
-
-    const updateDoc = {};
-    let emailChanged = false;
-
-    if (hasNameUpdate) {
-      if (!full_name || full_name.length < 2 || full_name.length > 120) {
-        return res.status(400).json({
-          message: "full_name must be between 2 and 120 characters",
-        });
-      }
-      updateDoc.full_name = full_name;
-    }
-
-    if (hasEmailUpdate) {
-      const nextEmail = normalizeEmail(nextEmailRaw);
-      if (!nextEmail || !isEmailLike(nextEmail)) {
-        return res.status(400).json({ message: "Valid email is required" });
-      }
-
-      if (nextEmail !== req.user.email) {
-        const duplicate = await User.findOne({
-          email: nextEmail,
-          _id: { $ne: req.user._id },
-        }).select("_id");
-
-        if (duplicate) {
-          return res.status(409).json({ message: "Email already in use" });
-        }
-
-        updateDoc.email = nextEmail;
-        updateDoc.isVerified = false;
-        emailChanged = true;
-      }
-    }
-
-    if (!Object.keys(updateDoc).length) {
-      const current = await User.findById(req.user._id).select(
-        "_id email full_name isVerified avatar clearance nodesCount",
-      );
-      return res.status(200).json({
-        message: "Profile unchanged",
-        user: publicUser(current),
-      });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(req.user._id, updateDoc, {
-      runValidators: true,
-      returnDocument: "after",
-    }).select("_id email full_name isVerified avatar clearance nodesCount");
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (emailChanged) {
-      await sendVerificationCode(updatedUser.email, "PROFILE_EMAIL_CHANGE");
-      console.log(
-        `[AUTH][PROFILE] Email changed for id=${updatedUser._id} -> ${maskEmail(updatedUser.email)}; verification reset`,
-      );
-    } else {
-      console.log(`[AUTH][PROFILE] Profile updated for id=${updatedUser._id}`);
-    }
-
-    return res.status(200).json({
-      message: emailChanged
-        ? "Profile updated. Verification code sent to new email"
-        : "Profile updated",
-      emailVerificationRequired: emailChanged,
-      user: publicUser(updatedUser),
-    });
-  } catch (error) {
-    console.error("[AUTH][PROFILE] Failed:", error.message);
-    return res.status(500).json({ message: "Failed to update profile" });
-  }
-};
-
-export const avatar = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "Avatar file is required" });
-    }
-
-    const ext = path.extname(req.file.originalname || "").toLowerCase();
-    const allowedExt = new Set([".png", ".jpg", ".jpeg", ".webp"]);
-    const safeExt = allowedExt.has(ext) ? ext : ".png";
-    const originalBaseName = path.basename(
-      req.file.originalname || "avatar",
-      ext,
-    );
-    const safeBaseName = sanitizeFileName(originalBaseName) || "avatar";
-
-    const fileName = `${req.user._id}-${Date.now()}-${safeBaseName}${safeExt}`;
-    const avatarsDir = path.join(process.cwd(), "uploads", "avatars");
-
-    await fs.mkdir(avatarsDir, { recursive: true });
-    await fs.writeFile(path.join(avatarsDir, fileName), req.file.buffer);
-
-    const backendPublicBase = (
-      process.env.BACKEND_PUBLIC_URL || "http://localhost:5000"
-    ).replace(/\/$/, "");
-
-    const avatarUrl = `${backendPublicBase}/uploads/avatars/${fileName}`;
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      { avatar: avatarUrl },
-      {
-        runValidators: true,
-        returnDocument: "after",
-      },
-    ).select("_id email full_name isVerified avatar clearance nodesCount");
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    console.log(
-      `[AUTH][AVATAR] Avatar updated for id=${updatedUser._id} file=${fileName}`,
-    );
-
-    return res.status(200).json({
-      message: "Avatar uploaded successfully",
-      user: publicUser(updatedUser),
-    });
-  } catch (error) {
-    console.error("[AUTH][AVATAR] Failed:", error.message);
-    return res.status(500).json({ message: "Failed to upload avatar" });
-  }
 };

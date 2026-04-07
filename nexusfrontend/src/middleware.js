@@ -10,7 +10,7 @@ export async function middleware(request) {
 
   try {
     const cookieHeader = request.headers.get("cookie") || "";
-    const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    const meResponse = await fetch(`${API_BASE_URL}/api/profile/me`, {
       method: "GET",
       headers: {
         Cookie: cookieHeader,
