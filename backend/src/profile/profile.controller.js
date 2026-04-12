@@ -1,6 +1,7 @@
 import User from "../auth/auth.model.js";
 import nodemailer from "nodemailer";
 import TempCode from "../auth/tempCode.model.js";
+import { logger } from "../utils/logger.js";
 
 const SIX_DIGIT_CODE_MIN = 100000;
 const SIX_DIGIT_CODE_MAX = 999999;
@@ -36,16 +37,21 @@ const avatarToDataUrl = (avatar = null) => {
   return `data:${avatar.contentType};base64,${avatar.data}`;
 };
 
-const publicUser = (user) => ({
+const publicUser = (user, options = {}) => {
+  const includeAvatar = options.includeAvatar === true;
+  const avatarData = includeAvatar ? avatarToDataUrl(user.avatar) : "";
+
+  return {
   id: String(user._id),
   email: user.email,
   full_name: user.full_name,
   isVerified: Boolean(user.isVerified),
-  avatar: avatarToDataUrl(user.avatar),
-  avatarUrl: avatarToDataUrl(user.avatar),
+  avatar: avatarData,
+  avatarUrl: avatarData,
   clearance: user.clearance || "Lvl 4",
   nodesCount: Number(user.nodesCount || 0),
-});
+  };
+};
 
 const sendVerificationCode = async (email, contextLabel = "PROFILE_EMAIL_CHANGE") => {
   const otpCode = String(
@@ -74,21 +80,50 @@ const sendVerificationCode = async (email, contextLabel = "PROFILE_EMAIL_CHANGE"
     text: `Your NexusNode AI verification code is ${otpCode}. It expires in 5 minutes.`,
   });
 
-  console.log(
-    `[PROFILE][${contextLabel}] Verification code generated for ${maskEmail(email)}`,
-  );
+  logger.info("profile_verification_code_generated", {
+    context: contextLabel,
+    email: maskEmail(email),
+  });
 };
 
 export const getProfile = async (req, res) => {
-  const user = await User.findById(req.user._id).select(
-    "_id email full_name isVerified avatar clearance nodesCount",
-  );
+  try {
+    const includeAvatar = String(req.query?.includeAvatar || "") === "1";
+    const projection = includeAvatar
+      ? "_id email full_name isVerified avatar clearance nodesCount"
+      : "_id email full_name isVerified clearance nodesCount";
 
-  if (!user) {
-    return res.status(401).json({ message: "Unauthorized" });
+    const startedAt = Date.now();
+    const user = await User.findById(req.user._id).select(projection);
+
+    if (!user) {
+      logger.warn("profile_get_unauthorized", {
+        requestId: req.id,
+        userId: String(req.user?._id || ""),
+      });
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const responsePayload = publicUser(user, { includeAvatar });
+    const responseBytes = Buffer.byteLength(JSON.stringify(responsePayload), "utf8");
+
+    logger.info("profile_get_success", {
+      requestId: req.id,
+      userId: String(user._id),
+      includeAvatar,
+      responseBytes,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return res.status(200).json(responsePayload);
+  } catch (error) {
+    logger.error("profile_get_failed", {
+      requestId: req.id,
+      userId: String(req.user?._id || ""),
+      error: error.message,
+    });
+    return res.status(500).json({ message: "Failed to fetch profile" });
   }
-
-  return res.status(200).json(publicUser(user));
 };
 
 export const updateProfile = async (req, res) => {
@@ -159,11 +194,16 @@ export const updateProfile = async (req, res) => {
 
     if (emailChanged) {
       await sendVerificationCode(updatedUser.email);
-      console.log(
-        `[PROFILE] Email changed for id=${updatedUser._id} -> ${maskEmail(updatedUser.email)}; verification reset`,
-      );
+      logger.info("profile_email_changed", {
+        requestId: req.id,
+        userId: String(updatedUser._id),
+        nextEmail: maskEmail(updatedUser.email),
+      });
     } else {
-      console.log(`[PROFILE] Profile updated for id=${updatedUser._id}`);
+      logger.info("profile_updated", {
+        requestId: req.id,
+        userId: String(updatedUser._id),
+      });
     }
 
     return res.status(200).json({
@@ -174,7 +214,11 @@ export const updateProfile = async (req, res) => {
       user: publicUser(updatedUser),
     });
   } catch (error) {
-    console.error("[PROFILE] Failed to update profile:", error.message);
+    logger.error("profile_update_failed", {
+      requestId: req.id,
+      userId: String(req.user?._id || ""),
+      error: error.message,
+    });
     return res.status(500).json({ message: "Failed to update profile" });
   }
 };
@@ -217,14 +261,22 @@ export const uploadAvatar = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log(`[PROFILE] Avatar updated for id=${updatedUser._id}`);
+    logger.info("profile_avatar_updated", {
+      requestId: req.id,
+      userId: String(updatedUser._id),
+      avatarBytes: Buffer.byteLength(updatedUser?.avatar?.data || "", "utf8"),
+    });
 
     return res.status(200).json({
       message: "Avatar uploaded successfully",
       user: publicUser(updatedUser),
     });
   } catch (error) {
-    console.error("[PROFILE] Failed to upload avatar:", error.message);
+    logger.error("profile_avatar_upload_failed", {
+      requestId: req.id,
+      userId: String(req.user?._id || ""),
+      error: error.message,
+    });
     return res.status(500).json({ message: "Failed to upload avatar" });
   }
 };

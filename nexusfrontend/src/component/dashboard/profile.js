@@ -30,17 +30,6 @@ export default function Profile() {
     fetchProfile();
   }, [fetchProfile]);
 
-  useEffect(() => {
-    setNameDraft(user?.name || "");
-    setEmailDraft(user?.email || "");
-  }, [user?.name, user?.email]);
-
-  useEffect(() => {
-    if (user?.avatarUrl) {
-      console.log("[PROFILE][AVATAR_URL]", user.avatarUrl);
-    }
-  }, [user?.avatarUrl]);
-
   const handleSave = async (event) => {
     event.preventDefault();
     const result = await updateProfile({
@@ -63,10 +52,17 @@ export default function Profile() {
 
     const result = await uploadAvatar(file);
     if (result) {
-      console.log("[PROFILE][AVATAR_UPLOAD]", result?.user?.avatarUrl || result?.user?.avatar || "");
       toast.success("Avatar Updated");
     }
     event.target.value = "";
+  };
+
+  const handleToggleEdit = () => {
+    if (!isEditing) {
+      setNameDraft(user?.name || "");
+      setEmailDraft(user?.email || "");
+    }
+    setIsEditing((prev) => !prev);
   };
 
   // Animation Variants
@@ -80,12 +76,12 @@ export default function Profile() {
       variants={containerVariants}
       initial="initial"
       animate="animate"
-      className="w-full h-102.5 flex gap-4 p-1 select-none overflow-hidden"
+      className="w-full h-full min-h-0 grid grid-cols-1 xl:grid-cols-5 gap-3 md:gap-4 p-1 md:p-2 select-none overflow-y-auto lg:overflow-hidden"
     >
       {/* 1. IDENTITY NODE (LEFT COLUMN) */}
       <motion.div
         variants={containerVariants}
-        className="flex-[0.4] bg-white border border-slate-200 rounded-[2.5rem] p-6 flex flex-col items-center justify-center relative overflow-hidden group shadow-sm"
+        className="xl:col-span-2 bg-white border border-slate-200 rounded-[2.5rem] p-4 md:p-6 flex flex-col items-center justify-center relative overflow-hidden group shadow-sm min-h-0"
       >
         <div className="absolute top-0 left-0 w-full h-24 bg-linear-to-br from-rose-500/10 to-orange-500/10" />
 
@@ -156,9 +152,9 @@ export default function Profile() {
       {/* 2. CONFIGURATION HUB (RIGHT COLUMN) */}
       <motion.div
         variants={containerVariants}
-        className="flex-[0.6] bg-white border border-slate-200 rounded-[2.5rem] p-8 flex flex-col shadow-sm relative"
+        className="xl:col-span-3 bg-white border border-slate-200 rounded-[2.5rem] p-4 md:p-8 flex flex-col shadow-sm relative min-h-0 overflow-hidden"
       >
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-5 md:mb-8">
           <div>
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
               <Fingerprint size={14} className="text-rose-600" /> Identity
@@ -169,15 +165,15 @@ export default function Profile() {
             </p>
           </div>
           <button
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={handleToggleEdit}
             className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition-all"
           >
             <RefreshCw size={18} className={isEditing ? "rotate-180" : ""} />
           </button>
         </div>
 
-        <form className="flex-1 space-y-5" onSubmit={handleSave}>
-          <div className="grid grid-cols-2 gap-4">
+        <form className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-5 pr-1" onSubmit={handleSave}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase text-slate-400 ml-1">
                 Full Identity
@@ -190,7 +186,7 @@ export default function Profile() {
                 <input
                   disabled={!isEditing}
                   type="text"
-                  value={nameDraft}
+                  value={isEditing ? nameDraft : user?.name || ""}
                   onChange={(event) => setNameDraft(event.target.value)}
                   className="w-full bg-slate-50/50 border border-slate-200 rounded-xl py-2.5 pl-10 text-sm font-bold focus:border-rose-600 focus:bg-white outline-none transition-all disabled:opacity-60"
                 />
@@ -208,7 +204,7 @@ export default function Profile() {
                 <input
                   disabled={!isEditing}
                   type="email"
-                  value={emailDraft}
+                  value={isEditing ? emailDraft : user?.email || ""}
                   onChange={(event) => setEmailDraft(event.target.value)}
                   className="w-full bg-slate-50/50 border border-slate-200 rounded-xl py-2.5 pl-10 text-sm font-bold focus:border-rose-600 focus:bg-white outline-none transition-all disabled:opacity-60"
                 />

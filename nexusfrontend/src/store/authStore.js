@@ -22,6 +22,24 @@ const defaultSignupForm = {
 
 const defaultOtp = ["", "", "", "", "", ""];
 
+const setSessionMarker = () => {
+  if (typeof document === "undefined") return;
+  const secureAttr =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  document.cookie = `nn_session=1; Path=/; Max-Age=604800; SameSite=Lax${secureAttr}`;
+};
+
+const clearSessionMarker = () => {
+  if (typeof document === "undefined") return;
+  const secureAttr =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  document.cookie = `nn_session=; Path=/; Max-Age=0; SameSite=Lax${secureAttr}`;
+};
+
 export const useAuth = create((set, get) => ({
     hydrated: false,
 
@@ -124,6 +142,8 @@ export const useAuth = create((set, get) => ({
         error: "",
       });
 
+      setSessionMarker();
+
       return true;
     } catch (err) {
       set({ loading: false, error: err.message || "Verification failed" });
@@ -148,6 +168,8 @@ export const useAuth = create((set, get) => ({
         error: "",
       });
 
+      setSessionMarker();
+
       return true;
     } catch (err) {
       set({ loading: false, error: err.message || "Login failed" });
@@ -166,6 +188,7 @@ export const useAuth = create((set, get) => ({
         hydrated: true,
         loading: false,
       });
+      setSessionMarker();
       return user;
     } catch {
       set({
@@ -175,6 +198,7 @@ export const useAuth = create((set, get) => ({
         hydrated: true,
         loading: false,
       });
+      clearSessionMarker();
       return null;
     }
   },
@@ -219,5 +243,6 @@ export const useAuth = create((set, get) => ({
       loading: false,
       error: "",
     });
+    clearSessionMarker();
   },
 }));

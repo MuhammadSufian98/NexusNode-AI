@@ -43,11 +43,11 @@ export default function SettingsView() {
   };
 
   return (
-    <div className="grid lg:grid-cols-12 gap-6 h-full max-h-[calc(100vh-140px)] overflow-hidden">
+    <div className="grid lg:grid-cols-12 gap-4 md:gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden pb-2">
       {/* --- LEFT STAGE: MAIN CONFIG (8 Cols) --- */}
-      <div className="lg:col-span-8 flex flex-col bg-white border border-slate-200 rounded-[2.5rem] shadow-xl shadow-slate-200/40 overflow-hidden relative">
+      <div className="lg:col-span-8 flex flex-col bg-white border border-slate-200 rounded-[2.5rem] shadow-xl shadow-slate-200/40 overflow-hidden relative min-h-0">
         {/* Header Section */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-50 shrink-0 bg-white z-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 md:p-5 border-b border-slate-50 shrink-0 bg-white z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-rose-50 rounded-xl">
               <Settings
@@ -66,12 +66,12 @@ export default function SettingsView() {
           </div>
 
           {/* Tab Slider Integrated into Header */}
-          <div className="bg-slate-100 p-1 rounded-xl flex items-center relative min-w-70">
+          <div className="bg-slate-100 p-1 rounded-xl grid grid-cols-3 w-full md:w-auto md:min-w-70">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest transition-colors ${
+                className={`relative z-10 flex items-center justify-center gap-1 md:gap-2 px-2 md:px-4 py-2 md:py-1.5 text-[9px] font-black uppercase tracking-[0.08em] md:tracking-widest transition-colors ${
                   activeTab === tab.id ? "text-rose-600" : "text-slate-500"
                 }`}
               >
@@ -89,7 +89,7 @@ export default function SettingsView() {
         </div>
 
         {/* Content Area - Internal Scroll Only */}
-        <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-slate-50/20">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/20">
           <AnimatePresence mode="wait">
             {activeTab === "neural" && (
               <motion.div key="neural" {...tabVariants} className="space-y-8">
@@ -98,7 +98,7 @@ export default function SettingsView() {
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">
                     Primary Inference Stage
                   </h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {["openai", "gemini"].map((p) => (
                       <button
                         key={p}
@@ -132,7 +132,7 @@ export default function SettingsView() {
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">
                     Security Credentials
                   </h3>
-                  <div className="flex gap-2 p-2 bg-white border border-slate-200 rounded-3xl items-center shadow-sm">
+                  <div className="flex flex-col md:flex-row gap-2 p-2 bg-white border border-slate-200 rounded-3xl md:items-center shadow-sm">
                     <div className="p-3 bg-slate-50 rounded-xl">
                       <Key size={16} className="text-slate-400" />
                     </div>
@@ -143,14 +143,14 @@ export default function SettingsView() {
                       placeholder={`Enter Secret ${selectedProvider.toUpperCase()} Key`}
                       className="flex-1 bg-transparent px-2 text-xs font-bold text-slate-700 outline-none"
                     />
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 w-full md:w-auto">
                       <button
                         onClick={() => setApiKey("")}
-                        className="px-5 py-2.5 bg-slate-50 text-slate-500 text-[10px] font-black uppercase rounded-xl hover:bg-slate-100 transition-all"
+                        className="flex-1 md:flex-none px-5 py-2.5 bg-slate-50 text-slate-500 text-[10px] font-black uppercase rounded-xl hover:bg-slate-100 transition-all"
                       >
                         Clear
                       </button>
-                      <button className="px-5 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-rose-600 transition-all">
+                      <button className="flex-1 md:flex-none px-5 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-rose-600 transition-all">
                         Activate
                       </button>
                     </div>
@@ -161,7 +161,7 @@ export default function SettingsView() {
 
             {activeTab === "vault" && (
               <motion.div key="vault" {...tabVariants} className="space-y-6">
-                <div className="bg-rose-50/50 border border-rose-100 p-6 rounded-4xl flex items-center justify-between">
+                <div className="bg-rose-50/50 border border-rose-100 p-5 md:p-6 rounded-4xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
                     <h4 className="text-xs font-black text-rose-700 uppercase tracking-widest">
                       Total Data Purge
@@ -174,7 +174,7 @@ export default function SettingsView() {
                     Execute Wipe
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-6 bg-white border border-slate-100 rounded-4xl space-y-2">
                     <Trash2 size={20} className="text-slate-400" />
                     <p className="text-[10px] font-black text-slate-800 uppercase">
@@ -201,7 +201,7 @@ export default function SettingsView() {
               <motion.div
                 key="general"
                 {...tabVariants}
-                className="grid grid-cols-2 gap-6"
+                className="grid grid-cols-1 md:grid-cols-2 gap-6"
               >
                 <div className="space-y-4">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">
@@ -244,7 +244,7 @@ export default function SettingsView() {
       </div>
 
       {/* --- RIGHT: DIAGNOSTICS & STATUS (4 Cols) --- */}
-      <div className="lg:col-span-4 flex flex-col gap-5 overflow-hidden">
+      <div className="lg:col-span-4 flex flex-col gap-5 overflow-hidden min-h-0">
         {/* Resource Allocation Card */}
         <div className="bg-white border border-slate-200 rounded-[2.5rem] p-6 flex flex-col shadow-sm">
           <div className="flex items-center gap-3 mb-6">

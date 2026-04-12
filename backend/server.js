@@ -4,12 +4,14 @@ import mongoose from "mongoose";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import morgan from "morgan";
+import crypto from "crypto";
 
 // Route Imports
 import authRoutes from "./src/auth/auth.routes.js";
 import profileRoutes from "./src/profile/profile.routes.js";
 import ragRoutes from "./src/rag/rag.routes.js";
+import { notFoundHandler, errorHandler } from "./src/middleware/error.middleware.js";
+import { logger } from "./src/utils/logger.js";
 
 // Model Imports (for logging verification)
 import User from "./src/auth/auth.model.js";
@@ -25,7 +27,7 @@ const MONGO_URI = process.env.MONGO_URI;
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || "NexusNode";
 const APP_ENV = (process.env.APP_ENV || "development").toLowerCase();
 
-const internalLog = (...args) => console.log("[INTERNAL]", ...args);
+const internalLog = (...args) => logger.info("internal", { message: args.join(" ") });
 
 // --- CORS STRATEGY ---
 const normalizeOrigin = (value = "") => value.replace(/\/+$/, "");
@@ -58,7 +60,7 @@ const corsOptions = {
     if (isAllowedOrigin(cleanedOrigin)) {
       callback(null, true);
     } else {
-      console.error(`[CORS][BLOCKED] ${cleanedOrigin}`);
+      logger.warn("cors_blocked", { origin: cleanedOrigin });
       callback(
         new Error(`CORS policy does not allow access from ${cleanedOrigin}`),
       );
@@ -67,11 +69,36 @@ const corsOptions = {
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  optionsSuccessStatus: 204,
+  maxAge: 60 * 60,
 };
 
 // --- MIDDLEWARE ---
 app.use(helmet());
-app.use(morgan("dev"));
+app.use((req, res, next) => {
+  req.id = crypto.randomUUID();
+  res.setHeader("X-Request-Id", req.id);
+  next();
+});
+
+app.use((req, res, next) => {
+  const startedAt = process.hrtime.bigint();
+
+  res.on("finish", () => {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    logger.request({
+      requestId: req.id,
+      method: req.method,
+      path: req.originalUrl,
+      statusCode: res.statusCode,
+      durationMs: Number(durationMs.toFixed(2)),
+      bytes: res.getHeader("content-length") || 0,
+    });
+  });
+
+  next();
+});
+
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
@@ -90,7 +117,7 @@ const connectDB = async () => {
     );
     internalLog("------------------------------------------------");
   } catch (err) {
-    console.error("❌ MONGODB ERROR:", err.message);
+    logger.error("mongodb_connect_failed", { error: err.message });
     process.exit(1);
   }
 };
@@ -109,6 +136,9 @@ app.get("/", (req, res) => {
   res.json({ project: "NexusNode AI", version: "1.0.0", status: "active" });
 });
 
+app.use(notFoundHandler);
+app.use(errorHandler);
+
 // --- SERVER START ---
 const startServer = async () => {
   await connectDB();
@@ -123,3 +153,15 @@ const startServer = async () => {
 };
 
 startServer();
+
+process.on("unhandledRejection", (reason) => {
+  logger.error("unhandled_rejection", {
+    reason: reason instanceof Error ? reason.message : String(reason),
+  });
+});
+
+process.on("uncaughtException", (error) => {
+  logger.error("uncaught_exception", {
+    error: error?.message || "Unknown uncaught exception",
+  });
+});

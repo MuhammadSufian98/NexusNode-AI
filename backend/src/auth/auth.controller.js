@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 
 import User from "./auth.model.js";
 import TempCode from "./tempCode.model.js";
+import { logger } from "../utils/logger.js";
 
 const SIX_DIGIT_CODE_MIN = 100000;
 const SIX_DIGIT_CODE_MAX = 999999;
@@ -71,9 +72,11 @@ const sendVerificationCode = async (email, contextLabel = "VERIFY_EMAIL") => {
 
   const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
-  console.log(
-    `[AUTH][${contextLabel}] OTP request received for ${maskEmail(email)} | collection=${TempCode.collection.name}`,
-  );
+  logger.info("auth_otp_requested", {
+    context: contextLabel,
+    email: maskEmail(email),
+    collection: TempCode.collection.name,
+  });
 
   await TempCode.findOneAndUpdate(
     { email },
@@ -85,7 +88,10 @@ const sendVerificationCode = async (email, contextLabel = "VERIFY_EMAIL") => {
     },
   );
 
-  console.log("[AUTH][VERIFY_EMAIL] Attempting SMTP handshake...");
+  logger.info("auth_smtp_handshake_start", {
+    context: contextLabel,
+    email: maskEmail(email),
+  });
 
   try {
     await mailTransporter.sendMail({
@@ -132,9 +138,16 @@ const sendVerificationCode = async (email, contextLabel = "VERIFY_EMAIL") => {
           </div>
         `,
     });
-    console.log("[AUTH][VERIFY_EMAIL] SUCCESS: SMTP handshake completed");
+    logger.info("auth_smtp_handshake_success", {
+      context: contextLabel,
+      email: maskEmail(email),
+    });
   } catch (error) {
-    console.error(`[AUTH][VERIFY_EMAIL] FAIL: ${error.message}`);
+    logger.error("auth_smtp_handshake_failed", {
+      context: contextLabel,
+      email: maskEmail(email),
+      error: error.message,
+    });
     throw error;
   }
 };
@@ -143,6 +156,10 @@ export const requireAuth = async (req, res, next) => {
   try {
     const token = req.cookies?.token;
     if (!token) {
+      logger.warn("auth_missing_token", {
+        requestId: req.id,
+        path: req.originalUrl,
+      });
       return res.status(401).json({ message: "Unauthorized" });
     }
 
@@ -150,12 +167,22 @@ export const requireAuth = async (req, res, next) => {
     const user = await User.findById(payload.sub).select("_id email full_name");
 
     if (!user) {
+      logger.warn("auth_user_not_found", {
+        requestId: req.id,
+        userId: String(payload?.sub || ""),
+        path: req.originalUrl,
+      });
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     req.user = user;
     return next();
-  } catch {
+  } catch (error) {
+    logger.warn("auth_token_invalid", {
+      requestId: req.id,
+      path: req.originalUrl,
+      error: error?.message || "Invalid token",
+    });
     return res.status(401).json({ message: "Unauthorized" });
   }
 };
@@ -200,9 +227,10 @@ export const register = async (req, res) => {
 
     const existing = await User.findOne({ email }).select("_id");
     if (existing) {
-      console.warn(
-        `[AUTH][REGISTER] Duplicate email blocked for ${maskEmail(email)} | collection=${User.collection.name}`,
-      );
+      logger.warn("auth_register_duplicate_email", {
+        email: maskEmail(email),
+        collection: User.collection.name,
+      });
       return res.status(409).json({ message: "Email already registered" });
     }
 
@@ -213,9 +241,10 @@ export const register = async (req, res) => {
     });
 
     if (!otp) {
-      console.warn(
-        `[AUTH][REGISTER] Invalid/expired OTP for ${maskEmail(email)} | collection=${TempCode.collection.name}`,
-      );
+      logger.warn("auth_register_invalid_otp", {
+        email: maskEmail(email),
+        collection: TempCode.collection.name,
+      });
       return res.status(400).json({ message: "Invalid or expired OTP code" });
     }
 
@@ -227,21 +256,24 @@ export const register = async (req, res) => {
       isVerified: true,
     });
 
-    console.log(
-      `[AUTH][REGISTER] User created id=${user._id} email=${maskEmail(email)} | collection=${User.collection.name}`,
-    );
+    logger.info("auth_register_success", {
+      userId: String(user._id),
+      email: maskEmail(email),
+      collection: User.collection.name,
+    });
 
     await TempCode.deleteMany({ email });
-    console.log(
-      `[AUTH][REGISTER] Consumed OTP removed for ${maskEmail(email)} | collection=${TempCode.collection.name}`,
-    );
+    logger.info("auth_register_otp_consumed", {
+      email: maskEmail(email),
+      collection: TempCode.collection.name,
+    });
 
     return res.status(201).json({
       message: "Registration successful",
       user: publicUser(user),
     });
   } catch (error) {
-    console.error("[AUTH][REGISTER] Failed:", error.message);
+    logger.error("auth_register_failed", { error: error.message });
     return res.status(500).json({ message: "Registration failed" });
   }
 };
@@ -261,15 +293,16 @@ export const login = async (req, res) => {
       "_id email full_name pwd_hash",
     );
     if (!user) {
-      console.warn(
-        `[AUTH][LOGIN] User not found for ${maskEmail(email)} | collection=${User.collection.name}`,
-      );
+      logger.warn("auth_login_user_not_found", {
+        email: maskEmail(email),
+        collection: User.collection.name,
+      });
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const passwordOk = await bcrypt.compare(password, user.pwd_hash);
     if (!passwordOk) {
-      console.warn(`[AUTH][LOGIN] Invalid password for ${maskEmail(email)}`);
+      logger.warn("auth_login_invalid_password", { email: maskEmail(email) });
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -282,16 +315,18 @@ export const login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    console.log(
-      `[AUTH][LOGIN] Login success id=${user._id} email=${maskEmail(email)} | cookie=token`,
-    );
+    logger.info("auth_login_success", {
+      userId: String(user._id),
+      email: maskEmail(email),
+      cookie: "token",
+    });
 
     return res.status(200).json({
       message: "Login successful",
       user: publicUser(user),
     });
   } catch (error) {
-    console.error("[AUTH][LOGIN] Failed:", error.message);
+    logger.error("auth_login_failed", { error: error.message });
     return res.status(500).json({ message: "Login failed" });
   }
 };
@@ -302,6 +337,6 @@ export const logout = async (req, res) => {
     secure: IS_PRODUCTION,
     sameSite: IS_PRODUCTION ? "none" : "lax",
   });
-  console.log("[AUTH][LOGOUT] Session cookie cleared");
+  logger.info("auth_logout_success", { cookie: "token" });
   return res.status(200).json({ message: "Logout successful" });
 };

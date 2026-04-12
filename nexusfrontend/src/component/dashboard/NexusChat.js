@@ -9,6 +9,7 @@ import {
   Send,
   Folder,
   FileText,
+  Upload,
   ChevronLeft,
   Sparkles,
   Search,
@@ -23,6 +24,8 @@ export default function NexusChatInterface() {
   const {
     selectedDocument,
     setSelectedDocument,
+    setActiveSection,
+    handleFileUpload,
     documents,
     messages,
     sendMessage,
@@ -32,6 +35,7 @@ export default function NexusChatInterface() {
   const [inputValue, setInputValue] = useState("");
   const [view, setView] = useState("list");
   const scrollRef = useRef(null);
+  const uploadInputRef = useRef(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -59,12 +63,12 @@ export default function NexusChatInterface() {
   };
 
   return (
-    <div className="flex bg-slate-50/50 backdrop-blur-3xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden h-[calc(95vh-140px)] relative">
+    <div className="flex bg-slate-50/50 backdrop-blur-3xl border border-white rounded-4xl md:rounded-[2.5rem] shadow-2xl overflow-hidden h-full min-h-0 relative">
       {/* --- SIDEBAR: KNOWLEDGE VAULT --- */}
       <div
         className={`w-full lg:w-95 flex flex-col bg-white/40 border-r border-slate-200/50 transition-all duration-500 ${view === "chat" ? "hidden lg:flex" : "flex"}`}
       >
-        <div className="p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-black tracking-tighter text-slate-900">
@@ -92,44 +96,62 @@ export default function NexusChatInterface() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2 custom-scrollbar">
-          {documents.map((doc) => (
-            <motion.button
-              key={doc.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => selectDoc(doc)}
-              className={`w-full flex items-center gap-4 p-4 rounded-3xl transition-all relative overflow-hidden ${
-                selectedDocument?.id === doc.id
-                  ? "bg-white shadow-xl shadow-slate-200/50 ring-1 ring-slate-100"
-                  : "hover:bg-white/60"
-              }`}
-            >
-              {selectedDocument?.id === doc.id && (
-                <motion.div
-                  layoutId="activeGlow"
-                  className="absolute inset-y-0 left-0 w-1 bg-rose-500"
-                />
-              )}
-              <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
+        <div className="flex-1 overflow-y-auto px-3 md:px-4 pb-4 space-y-2 custom-scrollbar">
+          {documents.length === 0 ? (
+            <div className="h-full min-h-48 flex flex-col items-center justify-center text-center px-4">
+              <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-rose-500 shadow-sm mb-3">
+                <FileText size={26} />
+              </div>
+              <p className="text-sm font-black text-slate-800">No PDFs Yet</p>
+              <p className="text-[11px] font-semibold text-slate-400 mt-1 leading-relaxed">
+                Uploaded files will appear here in your Vault list.
+              </p>
+              {/* <button
+                onClick={() => uploadInputRef.current?.click()}
+                className="mt-4 px-4 py-2 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 transition-colors"
+              >
+                Upload PDF
+              </button> */}
+            </div>
+          ) : (
+            documents.map((doc) => (
+              <motion.button
+                key={doc.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => selectDoc(doc)}
+                className={`w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-3xl transition-all relative overflow-hidden ${
                   selectedDocument?.id === doc.id
-                    ? "bg-rose-50 text-rose-600"
-                    : "bg-slate-100 text-slate-400"
+                    ? "bg-white shadow-xl shadow-slate-200/50 ring-1 ring-slate-100"
+                    : "hover:bg-white/60"
                 }`}
               >
-                <FileText size={20} />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-[13px] font-black text-slate-800 tracking-tight">
-                  {doc.name}
-                </p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">
-                  {doc.size} • {doc.pages} Pages
-                </p>
-              </div>
-            </motion.button>
-          ))}
+                {selectedDocument?.id === doc.id && (
+                  <motion.div
+                    layoutId="activeGlow"
+                    className="absolute inset-y-0 left-0 w-1 bg-rose-500"
+                  />
+                )}
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
+                    selectedDocument?.id === doc.id
+                      ? "bg-rose-50 text-rose-600"
+                      : "bg-slate-100 text-slate-400"
+                  }`}
+                >
+                  <FileText size={20} />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-xs md:text-[13px] font-black text-slate-800 tracking-tight">
+                    {doc.name}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">
+                    {doc.size} • {doc.pages} Pages
+                  </p>
+                </div>
+              </motion.button>
+            ))
+          )}
         </div>
       </div>
 
@@ -140,7 +162,7 @@ export default function NexusChatInterface() {
         {selectedDocument ? (
           <>
             {/* Elegant Header */}
-            <div className="h-20 px-6 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
+            <div className="h-18 md:h-20 px-4 md:px-6 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setView("list")}
@@ -177,7 +199,7 @@ export default function NexusChatInterface() {
             {/* Chat Flow */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar"
+              className="flex-1 overflow-y-auto p-3 md:p-6 space-y-5 md:space-y-8 custom-scrollbar"
             >
               <AnimatePresence mode="popLayout">
                 {messages.map((msg, idx) => (
@@ -205,7 +227,7 @@ export default function NexusChatInterface() {
                       className={`flex flex-col gap-2 max-w-[80%] ${msg.role === "user" ? "items-end" : "items-start"}`}
                     >
                       <div
-                        className={`px-5 py-4 rounded-[1.8rem] text-[14px] leading-relaxed shadow-sm transition-all ${
+                        className={`px-4 md:px-5 py-3.5 md:py-4 rounded-[1.4rem] md:rounded-[1.8rem] text-[13px] md:text-[14px] leading-relaxed shadow-sm transition-all ${
                           msg.role === "user"
                             ? "bg-slate-900 text-white rounded-tr-none font-medium"
                             : "bg-white border border-slate-200/60 text-slate-700 rounded-tl-none font-medium"
@@ -250,7 +272,7 @@ export default function NexusChatInterface() {
 
             {/* Futuristic Input Area */}
             <div className="p-2 bg-white/80 backdrop-blur-xl border-t border-slate-100">
-              <div className="max-w-4xl mx-auto flex gap-3 p-1 bg-slate-50 border border-slate-200 rounded-4xl focus-within:bg-white focus-within:shadow-2xl focus-within:shadow-rose-500/5 focus-within:border-rose-300 transition-all duration-300">
+              <div className="max-w-4xl mx-auto flex gap-2 md:gap-3 p-1 bg-slate-50 border border-slate-200 rounded-3xl md:rounded-4xl focus-within:bg-white focus-within:shadow-2xl focus-within:shadow-rose-500/5 focus-within:border-rose-300 transition-all duration-300">
                 <div className="hidden sm:flex items-center pl-4 pr-2 border-r border-slate-200">
                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-2" />
                   <span className="text-[10px] font-black text-slate-400 uppercase">
@@ -266,7 +288,7 @@ export default function NexusChatInterface() {
                       ? `Querying ${selectedDocument.name}...`
                       : "Initialize a node..."
                   }
-                  className="flex-1 bg-transparent px-4 py-1 focus:outline-none text-[14px] font-bold text-slate-700 placeholder:text-slate-300"
+                  className="flex-1 bg-transparent px-3 md:px-4 py-1 focus:outline-none text-[13px] md:text-[14px] font-bold text-slate-700 placeholder:text-slate-300"
                 />
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -281,24 +303,68 @@ export default function NexusChatInterface() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-linear-to-b from-transparent to-slate-50/50">
-            <div className="relative mb-8">
-              <div className="w-24 h-24 bg-white rounded-[2.5rem] shadow-2xl flex items-center justify-center border border-slate-100">
-                <Bot size={48} className="text-slate-200" />
-              </div>
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                className="absolute -inset-4 border-2 border-dashed border-rose-200 rounded-full"
-              />
-            </div>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tighter">
-              Neural Link Idle
-            </h3>
-            <p className="text-sm font-medium text-slate-400 mt-3 max-w-sm leading-relaxed">
-              Select a data node from the vault to begin real-time neural
-              indexing and synthesis.
-            </p>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 text-center bg-linear-to-b from-transparent to-slate-50/50">
+            {documents.length === 0 ? (
+              <>
+                <input
+                  ref={uploadInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <div className="relative mb-6">
+                  <div className="w-22 h-22 md:w-24 md:h-24 bg-white rounded-4xl md:rounded-[2.5rem] shadow-2xl flex items-center justify-center border border-slate-100">
+                    <Upload size={42} className="text-rose-500" />
+                  </div>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                    className="absolute -inset-4 border-2 border-dashed border-rose-200 rounded-full"
+                  />
+                </div>
+                <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter">
+                  No PDF In Vault
+                </h3>
+                <p className="text-sm font-medium text-slate-400 mt-3 max-w-md leading-relaxed">
+                  Upload your first PDF to start querying documents with Nexus AI.
+                </p>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+                  <button
+                    onClick={() => uploadInputRef.current?.click()}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-black uppercase tracking-wider hover:bg-rose-500 transition-colors"
+                  >
+                    Upload PDF
+                  </button>
+                  <button
+                    onClick={() => setActiveSection("documents")}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-colors"
+                  >
+                    Open Vault
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative mb-8">
+                  <div className="w-24 h-24 bg-white rounded-[2.5rem] shadow-2xl flex items-center justify-center border border-slate-100">
+                    <Bot size={48} className="text-slate-200" />
+                  </div>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                    className="absolute -inset-4 border-2 border-dashed border-rose-200 rounded-full"
+                  />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tighter">
+                  Neural Link Idle
+                </h3>
+                <p className="text-sm font-medium text-slate-400 mt-3 max-w-sm leading-relaxed">
+                  Select a data node from the vault to begin real-time neural
+                  indexing and synthesis.
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>

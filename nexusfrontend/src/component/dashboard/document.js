@@ -70,9 +70,9 @@ export default function DocumentsView() {
   };
 
   return (
-    <div className="h-full max-h-[calc(95vh-140px)] flex flex-col gap-4 lg:gap-6 p-2 lg:p-4 overflow-hidden select-none">
+    <div className="h-full min-h-0 flex flex-col gap-4 lg:gap-6 p-2 lg:p-4 overflow-hidden select-none">
       {/* --- HEADER SECTION --- */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 shrink-0 px-2">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 shrink-0 px-1 sm:px-2">
         <div className="flex flex-col gap-1">
           <h2 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
             <div className="p-2 bg-rose-100 rounded-xl shrink-0">
@@ -85,9 +85,9 @@ export default function DocumentsView() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
           {/* Responsive Search Bar */}
-          <div className="relative group flex-1 min-w-50 sm:min-w-70">
+          <div className="relative group flex-1 min-w-0 sm:min-w-70 w-full sm:w-auto">
             <Search
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-600 transition-colors"
               size={14}
@@ -101,7 +101,7 @@ export default function DocumentsView() {
             />
           </div>
 
-          <label className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-rose-600 to-orange-500 text-white rounded-2xl shadow-lg shadow-rose-200 hover:scale-[1.03] active:scale-95 cursor-pointer transition-all shrink-0">
+          <label className="flex items-center justify-center gap-2 px-5 py-2.5 bg-linear-to-r from-rose-600 to-orange-500 text-white rounded-2xl shadow-lg shadow-rose-200 hover:scale-[1.03] active:scale-95 cursor-pointer transition-all shrink-0 w-full sm:w-auto">
             <Plus size={16} />
             <span className="text-[10px] lg:text-[11px] font-black uppercase tracking-widest">
               Upload
@@ -121,8 +121,7 @@ export default function DocumentsView() {
         variants={containerVariants}
         initial="initial"
         animate="animate"
-        className="flex-1 overflow-y-auto no-scrollbar px-2"
-        style={{ maxHeight: "calc(100vh - 200px)", overflowY: "auto" }} // Added maxHeight and overflow auto
+        className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 lg:gap-6">
           {/* UPLOAD CARD */}
@@ -220,6 +219,30 @@ export default function DocumentsView() {
               </motion.div>
             ))}
           </AnimatePresence>
+
+          {documents.length === 0 && (
+            <div className="col-span-full bg-white border border-slate-200 rounded-4xl lg:rounded-[3rem] p-8 md:p-10 text-center shadow-sm">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
+                <FileText size={28} />
+              </div>
+              <p className="text-lg font-black text-slate-900">No PDFs Uploaded</p>
+              <p className="text-sm font-semibold text-slate-400 mt-1">
+                Upload a PDF to populate your Knowledge Vault.
+              </p>
+            </div>
+          )}
+
+          {documents.length > 0 && filteredDocs.length === 0 && (
+            <div className="col-span-full bg-white border border-slate-200 rounded-4xl lg:rounded-[3rem] p-8 text-center shadow-sm">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mb-3">
+                <Search size={22} />
+              </div>
+              <p className="text-base font-black text-slate-900">No Match Found</p>
+              <p className="text-xs font-semibold text-slate-400 mt-1">
+                Try a different filename in search.
+              </p>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>

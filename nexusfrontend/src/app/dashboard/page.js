@@ -50,10 +50,11 @@ export default function Dashboard() {
     setSelectedDocument,
     overviewData,
   } = useGlobal();
-  const { user, logout } = useAuth();
+  const { user, logout, hydrateSession, isAuthenticated, authChecked } = useAuth();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const isCollapsed = !sidebarOpen;
 
   // Auto-close sidebar on mobile after selection
   const handleNavClick = (key) => {
@@ -73,13 +74,23 @@ export default function Dashboard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    hydrateSession();
+  }, [hydrateSession]);
+
+  useEffect(() => {
+    if (authChecked && !isAuthenticated) {
+      router.replace("/auth");
+    }
+  }, [authChecked, isAuthenticated, router]);
+
   const handleSignOut = async () => {
     await logout();
     router.push("/auth");
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 selection:bg-rose-100 overflow-x-hidden">
+    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 selection:bg-rose-100 overflow-hidden">
       <Toaster position="top-right" />
 
       {/* Sidebar Overlay (Mobile Only) */}
@@ -90,22 +101,21 @@ export default function Dashboard() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-slate-900/25 z-40 lg:hidden"
           />
         )}
       </AnimatePresence>
 
       {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{
-          x: sidebarOpen ? 0 : -320,
-          transition: { type: "spring", damping: 25, stiffness: 200 },
-        }}
-        className="fixed left-0 top-0 h-screen w-72 z-50 p-4 lg:p-6"
+      <aside
+        className={`fixed left-0 top-0 h-dvh z-50 p-2 md:p-3 lg:p-4 will-change-transform transition-[transform,width] duration-300 ease-out ${
+          sidebarOpen
+            ? "translate-x-0 w-72 lg:w-72"
+            : "-translate-x-full w-72 lg:translate-x-0 lg:w-24"
+        }`}
       >
-        <div className="h-full bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl lg:shadow-xl flex flex-col p-6">
-          <Link href="/" className="flex items-center gap-3 mb-10 group">
+        <div className={`h-full bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl lg:shadow-xl flex flex-col ${sidebarOpen ? "p-6" : "p-6 lg:px-2"}`}>
+          <Link href="/" className={`flex items-center mb-10 group ${sidebarOpen ? "gap-3" : "gap-3 lg:justify-center"}`}>
             <div className="relative w-10 h-10 group-hover:rotate-12 transition-transform duration-500">
               <Image
                 src="/favicon/logo.png"
@@ -116,24 +126,31 @@ export default function Dashboard() {
                 priority
               />
             </div>
-            <span className="text-xl font-black tracking-tighter">
+            <span className={`text-xl font-black tracking-tighter transition-all duration-200 ${sidebarOpen ? "opacity-100" : "lg:hidden"}`}>
               NexusNode<span className="text-rose-600">AI</span>
             </span>
           </Link>
 
-          <nav className="flex-1 space-y-2">
+          <nav className={`flex-1 space-y-2 ${isCollapsed ? "lg:flex lg:flex-col lg:items-center" : ""}`}>
             {sidebarItems.map((item) => (
               <button
                 key={item.key}
                 onClick={() => handleNavClick(item.key)}
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+                title={isCollapsed ? item.label : undefined}
+                className={`group relative w-full flex items-center px-4 py-3 rounded-2xl transition-all duration-200 font-bold text-sm ${
+                  sidebarOpen
+                    ? "gap-4"
+                    : "gap-4 lg:justify-center lg:px-0 lg:w-12 lg:h-12 lg:rounded-full lg:py-0"
+                } ${
                   activeSection === item.key
-                    ? "bg-rose-50 text-rose-600 border border-rose-100 shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                    ? sidebarOpen
+                      ? "bg-rose-50 text-rose-600 border border-rose-100 shadow-sm"
+                      : "bg-rose-50 text-rose-600 border border-rose-100 shadow-sm lg:rounded-full"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 lg:hover:rounded-full"
                 }`}
               >
                 <item.icon size={20} />
-                <span>{item.label}</span>
+                <span className={`transition-all duration-200 ${sidebarOpen ? "opacity-100" : "lg:hidden"}`}>{item.label}</span>
               </button>
             ))}
           </nav>
@@ -142,33 +159,43 @@ export default function Dashboard() {
           <div className="mt-auto pt-4 space-y-2 border-t border-slate-100">
             <button
               onClick={() => handleNavClick("profile")}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-600 hover:bg-slate-50 transition-colors text-sm font-bold"
+              title={isCollapsed ? "Profile" : undefined}
+              className={`w-full flex items-center px-4 py-3 rounded-2xl text-slate-600 hover:bg-slate-50 transition-colors text-sm font-bold ${
+                sidebarOpen
+                  ? "gap-3"
+                  : "gap-3 lg:justify-center lg:px-0 lg:w-12 lg:h-12 lg:rounded-full lg:py-0"
+              }`}
             >
-              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+              <div className={`w-8 h-8 flex items-center justify-center ${sidebarOpen ? "rounded-lg bg-slate-100" : "rounded-full bg-slate-100"}`}>
                 <User size={16} />
               </div>
-              <span>Profile</span>
+              <span className={`transition-all duration-200 ${sidebarOpen ? "opacity-100" : "lg:hidden"}`}>Profile</span>
             </button>
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-rose-600 hover:bg-rose-50 transition-colors text-sm font-bold"
+              title={isCollapsed ? "Sign Out" : undefined}
+              className={`w-full flex items-center px-4 py-3 rounded-2xl text-rose-600 hover:bg-rose-50 transition-colors text-sm font-bold ${
+                sidebarOpen
+                  ? "gap-3"
+                  : "gap-3 lg:justify-center lg:px-0 lg:w-12 lg:h-12 lg:rounded-full lg:py-0"
+              }`}
             >
-              <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center">
+              <div className={`w-8 h-8 flex items-center justify-center ${sidebarOpen ? "rounded-lg bg-rose-100" : "rounded-full bg-rose-100"}`}>
                 <LogOut size={16} />
               </div>
-              <span>Sign Out</span>
+              <span className={`transition-all duration-200 ${sidebarOpen ? "opacity-100" : "lg:hidden"}`}>Sign Out</span>
             </button>
           </div>
         </div>
-      </motion.aside>
+      </aside>
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 transition-all duration-500 w-full ${
-          sidebarOpen ? "lg:pl-70" : "pl-0"
-        } p-1 md:p-2 lg:p-4`}
+        className={`flex-1 h-dvh min-h-0 flex flex-col w-full transition-[padding-left] duration-300 ease-out ${
+          sidebarOpen ? "lg:pl-76" : "pl-0 lg:pl-28"
+        } p-2 md:p-3 lg:p-4`}
       >
-        <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-3xl md:rounded-4xl flex items-center justify-between px-4 md:px-8 mb-6 shadow-sm sticky top-4 z-30">
+        <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-3xl md:rounded-4xl flex items-center justify-between px-4 md:px-8 mb-3 md:mb-4 shadow-sm sticky top-0 z-30">
           <div className="flex items-center gap-3 md:gap-6">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -275,7 +302,7 @@ export default function Dashboard() {
         </header>
 
         {/* View Rendering */}
-        <div className="max-w-400 mx-auto">
+        <div className="flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden">
           {activeSection === "dashboard" && <OverviewView />}
           {activeSection === "documents" && <DocumentsView />}
           {activeSection === "profile" && <Profile />}

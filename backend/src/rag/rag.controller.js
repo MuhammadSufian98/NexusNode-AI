@@ -4,6 +4,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import Document from "./documents.model.js";
+import { logger } from "../utils/logger.js";
 
 const require = createRequire(import.meta.url);
 const pdfBase = require("pdf-parse");
@@ -21,7 +22,7 @@ async function getEmbedding(text) {
     });
     return result.embedding.values;
   } catch (error) {
-    console.error("Gemini Embedding Error:", error.message);
+    logger.error("rag_embedding_failed", { error: error.message });
     throw new Error("Failed to generate embedding.");
   }
 }
@@ -85,7 +86,7 @@ export const searchChunks = async (req, res) => {
     const dbName = mongoose.connection.name;
     const collectionName = Document.collection.name;
 
-    console.log(`DB: ${dbName} | COLLECTION: ${collectionName}`);
+    logger.info("rag_search_context", { dbName, collectionName });
 
     const queryVector = await getEmbedding(query);
 
@@ -139,6 +140,10 @@ ANSWER:
       sources: [...new Set(results.map((r) => r.fileName))],
     });
   } catch (error) {
+    logger.error("rag_search_failed", {
+      error: error.message,
+      query: query || "",
+    });
     res.status(500).json({ error: error.message });
   }
 };
