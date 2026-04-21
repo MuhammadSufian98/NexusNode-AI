@@ -1,26 +1,30 @@
-const nowIso = () => new Date().toISOString();
 const useColors = process.stdout.isTTY;
-let sequence = 0;
 
 const ANSI = {
   reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
   gray: "\x1b[90m",
   cyan: "\x1b[36m",
   blue: "\x1b[34m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
   red: "\x1b[31m",
-  magenta: "\x1b[35m",
 };
 
-const colorize = (color, value) => {
+const colorize = (styles, value) => {
   if (!useColors) return value;
-  return `${ANSI[color] || ""}${value}${ANSI.reset}`;
+  const styleList = Array.isArray(styles) ? styles : [styles];
+  const prefix = styleList.map((style) => ANSI[style] || "").join("");
+  return `${prefix}${value}${ANSI.reset}`;
 };
 
-const nextSequence = () => {
-  sequence += 1;
-  return String(sequence).padStart(5, "0");
+const nowTime = () => {
+  const date = new Date();
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
 };
 
 const valueToText = (value) => {
@@ -41,46 +45,67 @@ const metaToText = (meta = {}) =>
     .map(([key, value]) => `${key}=${valueToText(value)}`)
     .join(" ");
 
-const levelLabel = (level) => {
-  if (level === "error") return colorize("red", "ERROR");
-  if (level === "warn") return colorize("yellow", "WARN ");
-  if (level === "http") return colorize("magenta", "HTTP ");
-  return colorize("green", "INFO ");
+const LEVEL_WIDTH = 5;
+
+const levelStyle = (level) => {
+  if (level === "error") return ["bold", "red"];
+  if (level === "warn") return "yellow";
+  if (level === "debug" || level === "db") return "cyan";
+  return "green";
 };
+
+const levelLabel = (level) => String(level || "info").toUpperCase().padEnd(LEVEL_WIDTH, " ");
+
+const levelSymbol = (level) => {
+  if (level === "error") return "✖";
+  if (level === "warn") return "!";
+  if (level === "debug" || level === "db") return "⚡";
+  return "→";
+};
+
+const prefixText = (level) => `[${nowTime()}]  ${levelLabel(level)}  ${levelSymbol(level)}  `;
+
+const continuationPrefix = (level) => " ".repeat(prefixText(level).length);
 
 const writeLine = (line) => {
   process.stdout.write(`${line}\n`);
 };
 
 const emit = (level, message, meta = {}) => {
-  const seq = colorize("gray", `#${nextSequence()}`);
-  const ts = colorize("gray", nowIso());
-  const msg = colorize("cyan", message);
-  const metaText = metaToText(meta);
-  const line = `${seq} ${ts} ${levelLabel(level)} ${msg}${metaText ? ` ${colorize("blue", metaText)}` : ""}`;
+  const normalizedLevel = String(level || "info").toLowerCase();
+  const ts = colorize(["dim", "gray"], `[${nowTime()}]`);
+  const lvl = colorize(levelStyle(normalizedLevel), levelLabel(normalizedLevel));
+  const sym = colorize(levelStyle(normalizedLevel), levelSymbol(normalizedLevel));
+
+  const { error, stack, ...restMeta } = meta || {};
+  const details = metaToText(restMeta);
+  const line = `${ts}  ${lvl}  ${sym}  ${message}${details ? ` (${details})` : ""}`;
   writeLine(line);
+
+  const detailMessage = stack || error;
+  if (normalizedLevel === "error" && detailMessage) {
+    const firstLine = String(detailMessage).split("\n")[0];
+    const subLine = `${continuationPrefix(normalizedLevel)}${colorize("gray", "↳")}  ${firstLine}`;
+    writeLine(subLine);
+  }
 };
 
-const statusColor = (statusCode) => {
-  if (statusCode >= 500) return "red";
-  if (statusCode >= 400) return "yellow";
-  if (statusCode >= 300) return "cyan";
-  return "green";
+const formatDuration = (durationMs) => {
+  const safe = Number(durationMs);
+  if (!Number.isFinite(safe) || safe < 0) return "0ms";
+  const rounded = safe >= 10 ? Math.round(safe) : Number(safe.toFixed(2));
+  return `${rounded}ms`;
 };
 
 export const logger = {
   info: (message, meta) => emit("info", message, meta),
   warn: (message, meta) => emit("warn", message, meta),
   error: (message, meta) => emit("error", message, meta),
-  http: (message, meta) => emit("http", message, meta),
-  request: ({ requestId, method, path, statusCode, durationMs, bytes }) => {
-    emit("http", "request", {
-      requestId,
-      method,
-      path,
-      status: colorize(statusColor(Number(statusCode) || 0), String(statusCode || "-")),
-      durationMs,
-      bytes: bytes || 0,
-    });
+  debug: (message, meta) => emit("debug", message, meta),
+  db: (message, meta) => emit("db", message, meta),
+  http: (message, meta) => emit("info", message, meta),
+  request: ({ method, path, statusCode, durationMs }) => {
+    const requestMessage = `${method || "-"} ${path || "-"} ${statusCode || "-"} (${formatDuration(durationMs)})`;
+    emit("info", requestMessage);
   },
 };
