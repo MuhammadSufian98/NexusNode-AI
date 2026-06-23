@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Menu,
   X,
@@ -38,6 +39,7 @@ export default function Dashboard() {
     selectedDocument,
     setSelectedDocument,
     overviewData,
+    fetchDocuments,
   } = useGlobal();
 
   const { user, logout, hydrateSession, isAuthenticated, authChecked } =
@@ -58,6 +60,12 @@ export default function Dashboard() {
   useEffect(() => {
     hydrateSession();
   }, [hydrateSession]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDocuments();
+    }
+  }, [isAuthenticated, fetchDocuments]);
 
   useEffect(() => {
     if (authChecked && !isAuthenticated) {
@@ -144,8 +152,19 @@ export default function Dashboard() {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center gap-2 p-1 md:pr-3 bg-white border border-slate-200 rounded-2xl transition-all shadow-sm"
               >
-                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-linear-to-br from-rose-500 to-orange-400 flex items-center justify-center text-white">
-                  <User size={16} />
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white relative overflow-hidden shrink-0">
+                  {user?.avatarUrl || user?.avatar ? (
+                    <Image
+                      src={user.avatarUrl || user.avatar}
+                      alt="User avatar"
+                      fill
+                      sizes="36px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <User size={16} />
+                  )}
                 </div>
                 <ChevronDown
                   size={12}
@@ -241,3 +260,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

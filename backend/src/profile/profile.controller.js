@@ -2,6 +2,7 @@ import User from "../auth/auth.model.js";
 import nodemailer from "nodemailer";
 import TempCode from "../auth/tempCode.model.js";
 import { logger } from "../utils/logger.js";
+import cloudinary from "../utils/cloudinary.js";
 
 const SIX_DIGIT_CODE_MIN = 100000;
 const SIX_DIGIT_CODE_MAX = 999999;
@@ -30,28 +31,16 @@ const maskEmail = (email = "") => {
   return `${visible}${"*".repeat(Math.max(localPart.length - 2, 1))}@${domain}`;
 };
 
-const avatarToDataUrl = (avatar = null) => {
-  if (!avatar) return "";
-  if (typeof avatar === "string") return avatar;
-  if (!avatar.data || !avatar.contentType) return "";
-  return `data:${avatar.contentType};base64,${avatar.data}`;
-};
-
-const publicUser = (user, options = {}) => {
-  const includeAvatar = options.includeAvatar === true;
-  const avatarData = includeAvatar ? avatarToDataUrl(user.avatar) : "";
-
-  return {
+const publicUser = (user) => ({
   id: String(user._id),
   email: user.email,
   full_name: user.full_name,
   isVerified: Boolean(user.isVerified),
-  avatar: avatarData,
-  avatarUrl: avatarData,
+  avatar: user.avatar || "",
+  avatarUrl: user.avatarUrl || "",
   clearance: user.clearance || "Lvl 4",
   nodesCount: Number(user.nodesCount || 0),
-  };
-};
+});
 
 const sendVerificationCode = async (email, contextLabel = "PROFILE_EMAIL_CHANGE") => {
   const otpCode = String(
@@ -88,13 +77,10 @@ const sendVerificationCode = async (email, contextLabel = "PROFILE_EMAIL_CHANGE"
 
 export const getProfile = async (req, res) => {
   try {
-    const includeAvatar = String(req.query?.includeAvatar || "") === "1";
-    const projection = includeAvatar
-      ? "_id email full_name isVerified avatar clearance nodesCount"
-      : "_id email full_name isVerified clearance nodesCount";
-
     const startedAt = Date.now();
-    const user = await User.findById(req.user._id).select(projection);
+    const user = await User.findById(req.user._id).select(
+      "_id email full_name isVerified avatar avatarUrl clearance nodesCount",
+    );
 
     if (!user) {
       logger.warn("profile_get_unauthorized", {
@@ -104,13 +90,12 @@ export const getProfile = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const responsePayload = publicUser(user, { includeAvatar });
+    const responsePayload = publicUser(user);
     const responseBytes = Buffer.byteLength(JSON.stringify(responsePayload), "utf8");
 
     logger.info("profile_get_success", {
       requestId: req.id,
       userId: String(user._id),
-      includeAvatar,
       responseBytes,
       durationMs: Date.now() - startedAt,
     });
@@ -175,7 +160,7 @@ export const updateProfile = async (req, res) => {
 
     if (!Object.keys(updateDoc).length) {
       const current = await User.findById(req.user._id).select(
-        "_id email full_name isVerified avatar clearance nodesCount",
+        "_id email full_name isVerified avatar avatarUrl clearance nodesCount",
       );
       return res.status(200).json({
         message: "Profile unchanged",
@@ -186,7 +171,7 @@ export const updateProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(req.user._id, updateDoc, {
       runValidators: true,
       returnDocument: "after",
-    }).select("_id email full_name isVerified avatar clearance nodesCount");
+    }).select("_id email full_name isVerified avatar avatarUrl clearance nodesCount");
 
     if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
@@ -243,28 +228,53 @@ export const uploadAvatar = async (req, res) => {
       });
     }
 
-    const avatarPayload = {
-      data: req.file.buffer.toString("base64"),
-      contentType,
+    const user = await User.findById(req.user._id).select("avatar");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const uploadToCloudinary = () => {
+      return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { folder: "nexusnode_avatars" },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        uploadStream.end(req.file.buffer);
+      });
     };
+
+    const cloudinaryResult = await uploadToCloudinary();
+    const avatar = cloudinaryResult.public_id;
+    const avatarUrl = cloudinaryResult.secure_url;
+
+    if (user.avatar) {
+      try {
+        await cloudinary.uploader.destroy(user.avatar);
+      } catch (destroyErr) {
+        logger.error("profile_avatar_destroy_failed", {
+          userId: String(user._id),
+          error: destroyErr.message,
+        });
+      }
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
-      { avatar: avatarPayload },
+      { avatar, avatarUrl },
       {
         runValidators: true,
         returnDocument: "after",
       },
-    ).select("_id email full_name isVerified avatar clearance nodesCount");
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    ).select("_id email full_name isVerified avatar avatarUrl clearance nodesCount");
 
     logger.info("profile_avatar_updated", {
       requestId: req.id,
       userId: String(updatedUser._id),
-      avatarBytes: Buffer.byteLength(updatedUser?.avatar?.data || "", "utf8"),
+      filename: avatar,
+      avatarUrl,
     });
 
     return res.status(200).json({
@@ -278,5 +288,51 @@ export const uploadAvatar = async (req, res) => {
       error: error.message,
     });
     return res.status(500).json({ message: "Failed to upload avatar" });
+  }
+};
+
+export const deleteAvatar = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("avatar");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.avatar) {
+      try {
+        await cloudinary.uploader.destroy(user.avatar);
+      } catch (destroyErr) {
+        logger.error("profile_avatar_delete_failed", {
+          userId: String(user._id),
+          error: destroyErr.message,
+        });
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatar: "", avatarUrl: "" },
+      {
+        runValidators: true,
+        returnDocument: "after",
+      },
+    ).select("_id email full_name isVerified avatar avatarUrl clearance nodesCount");
+
+    logger.info("profile_avatar_deleted", {
+      requestId: req.id,
+      userId: String(updatedUser._id),
+    });
+
+    return res.status(200).json({
+      message: "Avatar removed successfully",
+      user: publicUser(updatedUser),
+    });
+  } catch (error) {
+    logger.error("profile_avatar_delete_failed", {
+      requestId: req.id,
+      userId: String(req.user?._id || ""),
+      error: error.message,
+    });
+    return res.status(500).json({ message: "Failed to delete avatar" });
   }
 };

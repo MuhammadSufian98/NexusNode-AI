@@ -5,6 +5,7 @@ import {
   getCurrentUser,
   updateUserProfile,
   uploadUserAvatar,
+  deleteUserAvatar,
 } from "@/utils/authApi";
 import { useAuth } from "@/store/authStore";
 
@@ -98,6 +99,20 @@ export const useProfile = create((set, get) => ({
       return payload;
     } catch (error) {
       set({ loading: false, error: error.message || "Failed to upload avatar" });
+      return null;
+    }
+  },
+
+  deleteAvatar: async () => {
+    set({ loading: true, error: "" });
+    try {
+      const payload = await deleteUserAvatar();
+      const mappedUser = toProfileUser(payload?.user);
+      syncAuthUser(payload?.user);
+      set({ user: mappedUser, loading: false, error: "", hydrated: true });
+      return payload;
+    } catch (error) {
+      set({ loading: false, error: error.message || "Failed to delete avatar" });
       return null;
     }
   },

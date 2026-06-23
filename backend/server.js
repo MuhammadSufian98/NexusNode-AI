@@ -6,10 +6,12 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import crypto from "crypto";
 
+
 // Route Imports
 import authRoutes from "./src/auth/auth.routes.js";
 import profileRoutes from "./src/profile/profile.routes.js";
 import ragRoutes from "./src/rag/rag.routes.js";
+import chatRoutes from "./src/chat/chat.routes.js";
 import { notFoundHandler, errorHandler } from "./src/middleware/error.middleware.js";
 import { logger } from "./src/utils/logger.js";
 
@@ -103,6 +105,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
+
 // --- DATABASE CONNECTION ---
 const connectDB = async () => {
   try {
@@ -130,6 +133,7 @@ app.get("/health", (req, res) =>
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/rag", ragRoutes);
+app.use("/api/chat", chatRoutes);
 
 // Root Fallback
 app.get("/", (req, res) => {

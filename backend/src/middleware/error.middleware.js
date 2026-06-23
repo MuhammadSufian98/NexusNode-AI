@@ -14,26 +14,23 @@ export const notFoundHandler = (req, res) => {
 };
 
 export const errorHandler = (err, req, res, _next) => {
-  const statusCode =
-    Number.isInteger(err?.statusCode) && err.statusCode >= 400
-      ? err.statusCode
-      : 500;
+  console.error("\n❌ ============== BROWSER TRANSACTION CRASH ==============");
+  console.error(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  console.error(`💡 Request Body:`, JSON.stringify(req.body, null, 2));
+  console.error(`🔥 Error Message: ${err.message}`);
+  console.error(`🎛️ Stack Trace:\n`, err.stack);
+  console.error("=========================================================\n");
 
-  logger.error("request_failed", {
-    requestId: req.id,
-    method: req.method,
-    path: req.originalUrl,
-    statusCode,
-    error: err?.message || "Unknown error",
-    stack: process.env.APP_ENV === "development" ? err?.stack : undefined,
-  });
+  const statusCode = err.status || err.statusCode || 500;
 
   if (res.headersSent) {
     return;
   }
 
   return res.status(statusCode).json({
-    message: statusCode === 500 ? "Internal server error" : err.message,
-    requestId: req.id,
+    success: false,
+    message: err.message || "Internal Server Error",
+    trace: process.env.NODE_ENV === "development" || process.env.APP_ENV === "development" ? err.stack : undefined,
+    requestId: req.id
   });
 };

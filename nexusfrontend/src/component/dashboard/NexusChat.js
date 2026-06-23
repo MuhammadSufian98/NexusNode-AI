@@ -17,8 +17,119 @@ import {
   Pulse,
   Zap,
   Waves,
+  Trash2,
 } from "lucide-react";
 import { useGlobal } from "@/store/globalStore";
+
+const parseInlineMarkdown = (text = "") => {
+  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  return parts.map((part, i) => {
+    if (i % 2 === 1) {
+      return (
+        <strong key={i} className="font-extrabold text-slate-900">
+          {part}
+        </strong>
+      );
+    }
+    return part;
+  });
+};
+
+const renderMarkdown = (text = "") => {
+  const lines = text.split("\n");
+  return lines.map((line, idx) => {
+    if (line.startsWith("### ")) {
+      return (
+        <h4
+          key={idx}
+          className="font-extrabold text-sm lg:text-base text-slate-900 mt-3 mb-1.5 uppercase tracking-tight"
+        >
+          {line.slice(4)}
+        </h4>
+      );
+    }
+    if (line.startsWith("## ")) {
+      return (
+        <h3
+          key={idx}
+          className="font-black text-base lg:text-lg text-slate-900 mt-4 mb-2 uppercase tracking-tight"
+        >
+          {line.slice(3)}
+        </h3>
+      );
+    }
+    if (line.startsWith("# ")) {
+      return (
+        <h2
+          key={idx}
+          className="font-black text-lg lg:text-xl text-slate-900 mt-5 mb-2.5 uppercase tracking-tight"
+        >
+          {line.slice(2)}
+        </h2>
+      );
+    }
+    if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
+      const content = line.trim().slice(2);
+      return (
+        <ul key={idx} className="list-disc pl-5 my-1.5 text-slate-700">
+          <li>{parseInlineMarkdown(content)}</li>
+        </ul>
+      );
+    }
+    return (
+      <p key={idx} className="my-2 min-h-[1rem]">
+        {parseInlineMarkdown(line)}
+      </p>
+    );
+  });
+};
+
+function CitationInspector({ citations }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!citations || citations.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-2 w-full select-none">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200/80 rounded-full text-[9px] font-black text-slate-500 uppercase tracking-widest border border-slate-200/50 transition-all active:scale-[0.97] cursor-pointer"
+      >
+        <Waves size={10} />
+        {expanded ? "Hide References" : `View References (${citations.length})`}
+      </button>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="mt-2 p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2 overflow-hidden"
+          >
+            {citations.map((c, i) => (
+              <div
+                key={i}
+                className="text-[10px] leading-relaxed border-b border-slate-200/40 pb-2 last:border-0 last:pb-0"
+              >
+                <div className="flex items-center gap-2 font-black text-slate-600 uppercase tracking-wider mb-1">
+                  <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0" />
+                  Source: {c.fileName || "Unknown File"}
+                </div>
+                <p className="font-medium text-slate-500 bg-white/60 p-2 rounded-xl border border-slate-100 shadow-inner italic">
+                  "{c.textSnippet || "No snippet available."}"
+                </p>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function NexusChatInterface() {
   const {
@@ -30,12 +141,21 @@ export default function NexusChatInterface() {
     messages,
     sendMessage,
     isProcessing,
+    activeConversationId,
+    conversationsList,
+    createNewChatSession,
+    loadUserChatThreads,
+    selectChatSession,
+    deleteChatSession,
+    editMessagePrompt,
   } = useGlobal();
 
   const [inputValue, setInputValue] = useState("");
   const [view, setView] = useState("list");
   const scrollRef = useRef(null);
   const uploadInputRef = useRef(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState("");
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -46,14 +166,21 @@ export default function NexusChatInterface() {
     }
   }, [messages, isProcessing]);
 
+  useEffect(() => {
+    if (selectedDocument) {
+      loadUserChatThreads(selectedDocument.id);
+      setView("chat");
+    } else {
+      setView("list");
+    }
+  }, [selectedDocument]);
+
   const selectDoc = (doc) => {
     setSelectedDocument(doc);
-    setView("chat");
   };
 
   const closeDoc = () => {
     setSelectedDocument(null);
-    setView("list");
   };
 
   const handleSend = () => {
@@ -64,7 +191,6 @@ export default function NexusChatInterface() {
 
   return (
     <div className="flex bg-slate-50/50 backdrop-blur-3xl border border-white rounded-4xl md:rounded-[2.5rem] shadow-2xl overflow-hidden h-full min-h-0 relative">
-      {/* --- SIDEBAR: KNOWLEDGE VAULT --- */}
       <div
         className={`w-full lg:w-95 flex flex-col bg-white/40 border-r border-slate-200/50 transition-all duration-500 ${view === "chat" ? "hidden lg:flex" : "flex"}`}
       >
@@ -106,12 +232,6 @@ export default function NexusChatInterface() {
               <p className="text-[11px] font-semibold text-slate-400 mt-1 leading-relaxed">
                 Uploaded files will appear here in your Vault list.
               </p>
-              {/* <button
-                onClick={() => uploadInputRef.current?.click()}
-                className="mt-4 px-4 py-2 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 transition-colors"
-              >
-                Upload PDF
-              </button> */}
             </div>
           ) : (
             documents.map((doc) => (
@@ -155,150 +275,258 @@ export default function NexusChatInterface() {
         </div>
       </div>
 
-      {/* --- MAIN CHAT AREA --- */}
       <div
-        className={`flex-1 flex flex-col bg-white/20 backdrop-blur-sm ${view === "list" ? "hidden lg:flex" : "flex"}`}
+        className={`flex-1 flex bg-white/20 backdrop-blur-sm ${view === "list" ? "hidden lg:flex" : "flex"}`}
       >
         {selectedDocument ? (
           <>
-            {/* Elegant Header */}
-            <div className="h-18 md:h-20 px-4 md:px-6 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setView("list")}
-                  className="lg:hidden p-2 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <div className="relative">
-                  <div className="w-11 h-11 bg-slate-100 rounded-2xl flex items-center justify-center text-white">
-                    <Bot size={22} className="text-rose-500" />
-                  </div>
-                  <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
-                </div>
-                <div>
-                  <h3 className="font-black text-[14px] text-slate-900 leading-tight tracking-tight">
-                    Nexus AI Analyst
-                  </h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                    <Sparkles size={10} className="text-rose-500" /> Neural
-                    Processing Active
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => closeDoc()}
-                  className="p-2.5 text-red-400 hover:bg-red-100 rounded-xl transition-all"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
+            <div className="hidden md:flex w-60 border-r border-slate-100 bg-white/30 backdrop-blur-md flex-col p-4 shrink-0 space-y-4">
+              <button
+                onClick={() => createNewChatSession(selectedDocument.id)}
+                className="w-full py-3 px-4 rounded-2xl bg-slate-900/10 hover:bg-slate-900/20 backdrop-blur-md border border-slate-950/10 text-slate-800 text-xs font-black uppercase tracking-wider transition-all duration-300 active:scale-[0.97] cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Sparkles size={14} className="text-rose-500" />
+                + New Chat
+              </button>
 
-            {/* Chat Flow */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto p-3 md:p-6 space-y-5 md:space-y-8 custom-scrollbar"
-            >
-              <AnimatePresence mode="popLayout">
-                {messages.map((msg, idx) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className={`flex gap-4 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-                  >
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                {conversationsList.map((thread, index) => {
+                  const threadId = thread._id || thread.id;
+                  const isActive = activeConversationId === threadId;
+                  return (
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm shrink-0 mt-1 ${
-                        msg.role === "user"
-                          ? "bg-rose-600 text-white"
-                          : "bg-white border border-slate-100 text-slate-800"
+                      key={threadId}
+                      className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all duration-300 relative group/thread ${
+                        isActive
+                          ? "bg-white shadow-md ring-1 ring-slate-100/50 text-slate-900"
+                          : "hover:bg-white/40 text-slate-600"
                       }`}
                     >
-                      {msg.role === "user" ? (
-                        <User size={16} />
-                      ) : (
-                        <Zap size={16} />
-                      )}
-                    </div>
-
-                    <div
-                      className={`flex flex-col gap-2 max-w-[80%] ${msg.role === "user" ? "items-end" : "items-start"}`}
-                    >
-                      <div
-                        className={`px-4 md:px-5 py-3.5 md:py-4 rounded-[1.4rem] md:rounded-[1.8rem] text-[13px] md:text-[14px] leading-relaxed shadow-sm transition-all ${
-                          msg.role === "user"
-                            ? "bg-slate-900 text-white rounded-tr-none font-medium"
-                            : "bg-white border border-slate-200/60 text-slate-700 rounded-tl-none font-medium"
-                        }`}
+                      <button
+                        onClick={() => selectChatSession(threadId)}
+                        className="flex-1 text-left min-w-0"
                       >
-                        {msg.content}
-                      </div>
-
-                      {msg.sources && (
-                        <span className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black text-slate-500 uppercase tracking-widest border border-slate-200/50">
-                          <Waves size={10} /> Context Page {msg.sources[0].page}
-                        </span>
-                      )}
+                        <div className="text-xs font-black truncate">
+                          Chat Session {conversationsList.length - index}
+                        </div>
+                        <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">
+                          {new Date(thread.updatedAt || thread.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteChatSession(threadId);
+                        }}
+                        className="opacity-0 group-hover/thread:opacity-100 p-1.5 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all duration-200 shrink-0 ml-2"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {/* Enhanced Dot Animation */}
-              {isProcessing && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex gap-4 items-start"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
-                    <Bot size={16} className="text-rose-500 animate-pulse" />
-                  </div>
-                  <div className="bg-white border border-slate-100 px-6 py-5 rounded-[1.8rem] rounded-tl-none shadow-sm flex gap-1.5">
-                    {[0, 0.2, 0.4].map((delay, i) => (
-                      <motion.span
-                        key={i}
-                        animate={{ y: [0, -8, 0] }}
-                        transition={{ duration: 0.6, repeat: Infinity, delay }}
-                        className="w-2 h-2 bg-rose-500 rounded-full"
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              )}
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Futuristic Input Area */}
-            <div className="p-2 bg-white/80 backdrop-blur-xl border-t border-slate-100">
-              <div className="max-w-4xl mx-auto flex gap-2 md:gap-3 p-1 bg-slate-50 border border-slate-200 rounded-3xl md:rounded-4xl focus-within:bg-white focus-within:shadow-2xl focus-within:shadow-rose-500/5 focus-within:border-rose-300 transition-all duration-300">
-                <div className="hidden sm:flex items-center pl-4 pr-2 border-r border-slate-200">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-2" />
-                  <span className="text-[10px] font-black text-slate-400 uppercase">
-                    Live
-                  </span>
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="h-18 md:h-20 px-4 md:px-6 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setView("list")}
+                    className="lg:hidden p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <div className="relative">
+                    <div className="w-11 h-11 bg-slate-100 rounded-2xl flex items-center justify-center text-white">
+                      <Bot size={22} className="text-rose-500" />
+                    </div>
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-[14px] text-slate-900 leading-tight tracking-tight">
+                      Nexus AI Analyst
+                    </h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                      <Sparkles size={10} className="text-rose-500" /> Neural
+                      Processing Active
+                    </p>
+                  </div>
                 </div>
-                <input
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder={
-                    selectedDocument
-                      ? `Querying ${selectedDocument.name}...`
-                      : "Initialize a node..."
-                  }
-                  className="flex-1 bg-transparent px-3 md:px-4 py-1 focus:outline-none text-[13px] md:text-[14px] font-bold text-slate-700 placeholder:text-slate-300"
-                />
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleSend}
-                  disabled={!inputValue.trim()}
-                  className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 disabled:bg-slate-200 disabled:shadow-none transition-all cursor-pointer"
-                >
-                  <Send size={18} fill="currentColor" />
-                </motion.button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => closeDoc()}
+                    className="p-2.5 text-red-400 hover:bg-red-100 rounded-xl transition-all"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto p-3 md:p-6 space-y-5 md:space-y-8 custom-scrollbar"
+              >
+                <AnimatePresence mode="popLayout">
+                  {messages.map((msg, idx) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className={`flex gap-4 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                    >
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm shrink-0 mt-1 ${
+                          msg.role === "user"
+                            ? "bg-rose-600 text-white"
+                            : "bg-white border border-slate-100 text-slate-800"
+                        }`}
+                      >
+                        {msg.role === "user" ? (
+                          <User size={16} />
+                        ) : (
+                          <Zap size={16} />
+                        )}
+                      </div>
+
+                      <div
+                        className={`flex flex-col gap-2 max-w-[80%] ${msg.role === "user" ? "items-end" : "items-start"}`}
+                      >
+                        {msg.role === "user" && editingMessageId === msg.id ? (
+                          <div className="flex flex-col gap-2 w-full min-w-[250px]">
+                            <textarea
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              className="w-full p-3 bg-slate-900 text-white border border-slate-750 rounded-2xl text-[13px] focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium resize-none min-h-[60px]"
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => {
+                                  setEditingMessageId(null);
+                                  setEditingText("");
+                                }}
+                                className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-white transition-all cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (editingText.trim() && editingText.trim() !== msg.content) {
+                                    await editMessagePrompt(msg.id, editingText);
+                                  }
+                                  setEditingMessageId(null);
+                                  setEditingText("");
+                                }}
+                                className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md transition-all active:scale-[0.97] cursor-pointer"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="relative group/bubble flex items-start gap-2">
+                            {msg.role === "user" && (
+                              <button
+                                onClick={() => {
+                                  setEditingMessageId(msg.id);
+                                  setEditingText(msg.content);
+                                }}
+                                className="opacity-0 group-hover/bubble:opacity-100 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-rose-500 transition-all duration-200 shrink-0 self-center cursor-pointer"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M12 20h9" />
+                                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                </svg>
+                              </button>
+                            )}
+                            <div
+                              className={`px-4 md:px-5 py-3.5 md:py-4 rounded-[1.4rem] md:rounded-[1.8rem] text-[13px] md:text-[14px] leading-relaxed shadow-sm transition-all ${
+                                msg.role === "user"
+                                  ? "bg-slate-900 text-white rounded-tr-none font-medium"
+                                  : "bg-white border border-slate-200/60 text-slate-700 rounded-tl-none font-medium"
+                              }`}
+                            >
+                              {msg.role === "user" ? msg.content : renderMarkdown(msg.content)}
+                            </div>
+                          </div>
+                        )}
+
+                        {msg.role === "user" && msg.isEdited && (
+                          <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest mt-1">
+                            (Edited)
+                          </span>
+                        )}
+
+                        {msg.role === "assistant" && msg.citations && (
+                          <CitationInspector citations={msg.citations} />
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                {isProcessing && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex gap-4 items-start"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                      <Bot size={16} className="text-rose-500 animate-pulse" />
+                    </div>
+                    <div className="bg-white border border-slate-100 px-6 py-5 rounded-[1.8rem] rounded-tl-none shadow-sm flex gap-1.5">
+                      {[0, 0.2, 0.4].map((delay, i) => (
+                        <motion.span
+                          key={i}
+                          animate={{ y: [0, -8, 0] }}
+                          transition={{ duration: 0.6, repeat: Infinity, delay }}
+                          className="w-2 h-2 bg-rose-500 rounded-full"
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="p-2 bg-white/80 backdrop-blur-xl border-t border-slate-100">
+                <div className="max-w-4xl mx-auto flex gap-2 md:gap-3 p-1 bg-slate-50 border border-slate-200 rounded-3xl md:rounded-4xl focus-within:bg-white focus-within:shadow-2xl focus-within:shadow-rose-500/5 focus-within:border-rose-300 transition-all duration-300">
+                  <div className="hidden sm:flex items-center pl-4 pr-2 border-r border-slate-200">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-2" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase">
+                      Live
+                    </span>
+                  </div>
+                  <input
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                    placeholder={
+                      selectedDocument
+                        ? `Querying ${selectedDocument.name}...`
+                        : "Initialize a node..."
+                    }
+                    className="flex-1 bg-transparent px-3 md:px-4 py-1 focus:outline-none text-[13px] md:text-[14px] font-bold text-slate-700 placeholder:text-slate-300"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleSend}
+                    disabled={!inputValue.trim()}
+                    className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 disabled:bg-slate-200 disabled:shadow-none transition-all cursor-pointer"
+                  >
+                    <Send size={18} fill="currentColor" />
+                  </motion.button>
+                </div>
               </div>
             </div>
           </>

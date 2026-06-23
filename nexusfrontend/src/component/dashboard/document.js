@@ -17,6 +17,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useGlobal } from "@/store/globalStore";
+import PdfViewer from "@/component/PdfViewer";
 
 const getStatusBadge = (status) => {
   if (status === "redacting") {
@@ -44,6 +45,15 @@ export default function DocumentsView() {
   } = useGlobal();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedPdfUrl, setSelectedPdfUrl] = useState("");
+  const [selectedPdfName, setSelectedPdfName] = useState("");
+
+  const openPdfViewer = (url, name) => {
+    setSelectedPdfUrl(url);
+    setSelectedPdfName(name);
+    setViewerOpen(true);
+  };
 
   // Search Logic
   const filteredDocs = useMemo(() => {
@@ -150,7 +160,11 @@ export default function DocumentsView() {
                 layout
                 variants={itemVariants}
                 exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                className={`group relative bg-white border border-slate-200 p-4 lg:p-6 rounded-4xl lg:rounded-[3rem] shadow-sm hover:shadow-2xl hover:shadow-rose-500/5 hover:-translate-y-1 transition-all flex flex-col justify-between overflow-hidden ${doc.status === "redacting" ? "opacity-75" : ""}`}
+                onClick={() => {
+                  if (doc.status === "redacting") return;
+                  openPdfViewer(doc.pdfUrl, doc.name);
+                }}
+                className={`group relative bg-white border border-slate-200 p-4 lg:p-6 rounded-4xl lg:rounded-[3rem] shadow-sm hover:shadow-2xl hover:shadow-rose-500/5 hover:-translate-y-1 transition-all flex flex-col justify-between overflow-hidden cursor-pointer ${doc.status === "redacting" ? "opacity-75" : ""}`}
               >
                 <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-rose-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
@@ -160,7 +174,10 @@ export default function DocumentsView() {
                       <FileText className="text-rose-600 w-5 h-5 lg:w-6 lg:h-6" />
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <button className="p-1.5 text-slate-300 hover:text-slate-600 transition-colors">
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 text-slate-300 hover:text-slate-600 transition-colors"
+                      >
                         <MoreVertical size={16} />
                       </button>
                       <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full shrink-0 ${getStatusBadge(doc.status).className}`}>
@@ -197,7 +214,8 @@ export default function DocumentsView() {
 
                   <div className="flex gap-1.5 lg:gap-2 w-full sm:w-auto">
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (doc.status === "redacting") return;
                         setSelectedDocument(doc);
                         setActiveSection("chat");
@@ -209,7 +227,10 @@ export default function DocumentsView() {
                       Chat
                     </button>
                     <button
-                      onClick={() => handleDeleteDoc(doc.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDoc(doc.id);
+                      }}
                       className="p-2 lg:p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all flex items-center justify-center"
                     >
                       <Trash2 size={16} className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
@@ -245,6 +266,16 @@ export default function DocumentsView() {
           )}
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {viewerOpen && (
+          <PdfViewer
+            onClose={() => setViewerOpen(false)}
+            pdfUrl={selectedPdfUrl}
+            fileName={selectedPdfName}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

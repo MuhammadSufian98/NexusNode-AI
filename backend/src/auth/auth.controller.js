@@ -45,19 +45,13 @@ const maskEmail = (email = "") => {
   return `${visible}${"*".repeat(Math.max(localPart.length - 2, 1))}@${domain}`;
 };
 
-const avatarToDataUrl = (avatar = null) => {
-  if (!avatar) return "";
-  if (typeof avatar === "string") return avatar;
-  if (!avatar.data || !avatar.contentType) return "";
-  return `data:${avatar.contentType};base64,${avatar.data}`;
-};
-
 const publicUser = (user) => ({
   id: String(user._id),
   email: user.email,
   full_name: user.full_name,
   isVerified: Boolean(user.isVerified),
-  avatar: avatarToDataUrl(user.avatar),
+  avatar: user.avatar || "",
+  avatarUrl: user.avatarUrl || "",
   clearance: user.clearance || "Lvl 4",
   nodesCount: Number(user.nodesCount || 0),
 });

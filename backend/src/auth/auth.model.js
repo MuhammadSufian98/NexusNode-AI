@@ -26,14 +26,12 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
     avatar: {
-      data: {
-        type: String,
-        default: "",
-      },
-      contentType: {
-        type: String,
-        default: "",
-      },
+      type: String,
+      default: "",
+    },
+    avatarUrl: {
+      type: String,
+      default: "",
     },
     clearance: {
       type: String,

@@ -23,7 +23,7 @@ export default function Profile() {
   const [emailDraft, setEmailDraft] = useState("");
   const avatarInputRef = useRef(null);
 
-  const { user, loading, error, fetchProfile, updateProfile, uploadAvatar } =
+  const { user, loading, error, fetchProfile, updateProfile, uploadAvatar, deleteAvatar } =
     useProfile();
 
   useEffect(() => {
@@ -55,6 +55,13 @@ export default function Profile() {
       toast.success("Avatar Updated");
     }
     event.target.value = "";
+  };
+
+  const handleAvatarDelete = async () => {
+    const result = await deleteAvatar();
+    if (result) {
+      toast.success("Avatar Removed");
+    }
   };
 
   const handleToggleEdit = () => {
@@ -121,6 +128,17 @@ export default function Profile() {
             <BadgeCheck size={16} />
           </div>
         </div>
+
+        {(user?.avatarUrl || user?.avatar) && (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleAvatarDelete}
+            className="mt-1 mb-3 text-[10px] font-black text-rose-500 hover:text-rose-700 uppercase tracking-wider transition-colors cursor-pointer"
+          >
+            Remove Avatar
+          </button>
+        )}
 
         <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
           {user?.name || "Operator"}

@@ -84,3 +84,9 @@ export async function uploadUserAvatar(file) {
     body: formData,
   });
 }
+
+export async function deleteUserAvatar() {
+  return request("/api/profile/avatar", {
+    method: "DELETE",
+  });
+}

@@ -4,16 +4,35 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import Document from "./documents.model.js";
+import DocumentChunk from "./documentChunks.model.js";
+import cloudinary from "../utils/cloudinary.js";
+import { scoreAndSortChunks } from "../utils/vectorMath.js";
 import { logger } from "../utils/logger.js";
 
 const require = createRequire(import.meta.url);
 const pdfBase = require("pdf-parse");
-const pdf =
-  typeof pdfBase === "function" ? pdfBase : pdfBase.default || pdfBase;
+const pdf = typeof pdfBase === "function" ? pdfBase : pdfBase.default || pdfBase;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-async function getEmbedding(text) {
+const uploadPDFToCloudinary = (fileBuffer, originalName) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "nexusnode_documents",
+        resource_type: "raw",
+        public_id: originalName,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    uploadStream.end(fileBuffer);
+  });
+};
+
+export async function getEmbedding(text) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
     const result = await model.embedContent({
@@ -32,6 +51,11 @@ export const uploadAndProcessPDF = async (req, res) => {
     if (!req.file) {
       return res.status(400).send("No file uploaded.");
     }
+
+    const { workspace_id } = req.body;
+    const workspaceId = (workspace_id && mongoose.Types.ObjectId.isValid(workspace_id))
+      ? new mongoose.Types.ObjectId(workspace_id)
+      : undefined;
 
     const data = await pdf(req.file.buffer);
 
@@ -56,10 +80,16 @@ export const uploadAndProcessPDF = async (req, res) => {
         })),
       });
 
-      const batchDocs = batchResponse.embeddings.map((emb, index) => ({
-        text: currentBatch[index],
-        embedding: emb.values,
+      const batchDocs = batchResponse.embeddings.map((emb, idx) => ({
+        documentId: null,
+        userId: req.user._id,
+        workspace_id: workspaceId,
         fileName: req.file.originalname,
+        text: currentBatch[idx],
+        embedding: emb.values,
+        metadata: {
+          pageNumber: 1,
+        },
       }));
 
       docsToSave.push(...batchDocs);
@@ -69,11 +99,62 @@ export const uploadAndProcessPDF = async (req, res) => {
       }
     }
 
-    await Document.insertMany(docsToSave);
+    const cloudinaryResult = await uploadPDFToCloudinary(req.file.buffer, req.file.originalname);
 
-    res.json({ message: `Successfully indexed ${chunks.length} chunks.` });
+    const parentDoc = await Document.create({
+      userId: req.user._id,
+      workspace_id: workspaceId,
+      fileName: req.file.originalname,
+      pdfUrl: cloudinaryResult.secure_url,
+      cloudinaryPublicId: cloudinaryResult.public_id,
+    });
+
+    for (const chunk of docsToSave) {
+      chunk.documentId = parentDoc._id;
+    }
+
+    await DocumentChunk.insertMany(docsToSave);
+
+    res.json({
+      message: `Successfully indexed ${chunks.length} chunks.`,
+      document: parentDoc,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const listDocuments = async (req, res) => {
+  try {
+    const docs = await Document.find({ userId: req.user._id }).sort({ uploadedAt: -1 });
+    return res.status(200).json(docs);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doc = await Document.findOne({ _id: id, userId: req.user._id });
+    if (!doc) {
+      return res.status(404).json({ message: "Document not found" });
+    }
+
+    if (doc.cloudinaryPublicId) {
+      try {
+        await cloudinary.uploader.destroy(doc.cloudinaryPublicId, { resource_type: "raw" });
+      } catch (cloudinaryErr) {
+        logger.error("cloudinary_pdf_delete_failed", { error: cloudinaryErr.message });
+      }
+    }
+
+    await DocumentChunk.deleteMany({ documentId: doc._id, userId: req.user._id });
+    await Document.deleteOne({ _id: doc._id });
+
+    return res.status(200).json({ message: "Document and its chunks deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -81,34 +162,43 @@ export const searchChunks = async (req, res) => {
   const { query, generateResponse = false } = req.body;
 
   try {
-    if (!query) return res.status(400).send("Search query is required.");
+    if (!query) {
+      return res.status(400).send("Search query is required.");
+    }
 
     const dbName = mongoose.connection.name;
-    const collectionName = Document.collection.name;
+    const collectionName = DocumentChunk.collection.name;
 
     logger.info("rag_search_context", { dbName, collectionName });
 
     const queryVector = await getEmbedding(query);
 
-    const results = await Document.aggregate([
-      {
-        $vectorSearch: {
-          index: "vector_index",
-          path: "embedding",
-          queryVector: queryVector,
-          numCandidates: 200,
-          limit: 3,
+    let results = [];
+    try {
+      results = await DocumentChunk.aggregate([
+        {
+          $vectorSearch: {
+            index: "vector_index",
+            path: "embedding",
+            queryVector: queryVector,
+            numCandidates: 200,
+            limit: 3,
+            filter: { userId: req.user._id },
+          },
         },
-      },
-      {
-        $project: {
-          _id: 1,
-          text: 1,
-          fileName: 1,
-          score: { $meta: "vectorSearchScore" },
+        {
+          $project: {
+            _id: 1,
+            text: 1,
+            fileName: 1,
+            score: { $meta: "vectorSearchScore" },
+          },
         },
-      },
-    ]);
+      ]);
+    } catch (vectorSearchError) {
+      const allChunks = await DocumentChunk.find({ userId: req.user._id }).lean();
+      results = scoreAndSortChunks(queryVector, allChunks, 3);
+    }
 
     if (!generateResponse) {
       return res.json({ mode: "search", results });
