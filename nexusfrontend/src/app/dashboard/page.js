@@ -45,6 +45,7 @@ export default function Dashboard() {
   const { user, logout, hydrateSession, isAuthenticated, authChecked } =
     useAuth();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -73,16 +74,40 @@ export default function Dashboard() {
     }
   }, [authChecked, isAuthenticated, router]);
 
+  // Simulated upload progress tracking effect
+  useEffect(() => {
+    let interval;
+    if (isUploading) {
+      setUploadProgress(0);
+      interval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setTimeout(() => setIsUploading(false), 400);
+            return 100;
+          }
+          return prev + 5;
+        });
+      }, 150);
+    }
+    return () => clearInterval(interval);
+  }, [isUploading, setIsUploading]);
+
   const handleSignOut = async () => {
     await logout();
     router.push("/auth");
   };
 
+  // Circular progress stroke calculation parameters
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset =
+    circumference - (uploadProgress / 100) * circumference;
+
   return (
-    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 selection:bg-rose-100 overflow-hidden">
+    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 selection:bg-rose-100 overflow-hidden relative">
       <Toaster position="top-right" />
 
-      {/* NEW MODULAR SIDEBAR */}
       <Sidebar
         activeSection={activeSection}
         sidebarOpen={sidebarOpen}
@@ -90,17 +115,16 @@ export default function Dashboard() {
         onNavigate={(key) => setActiveSection(key)}
       />
 
-      {/* Main Content Area */}
       <main
-        className={`flex-1 h-dvh min-h-0 flex flex-col w-full transition-[padding-left] duration-300 ease-out ${
+        className={`flex-1 h-dvh min-h-0 flex flex-col w-full transition-[padding-left] duration-500 ease-in-out ${
           sidebarOpen ? "lg:pl-[260px]" : "lg:pl-[100px]"
-        } p-2 md:p-3 lg:p-4`}
+        } p-2 md:p-3 lg:p-4 pb-24 md:pb-3 lg:pb-4`}
       >
         <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-3xl md:rounded-4xl flex items-center justify-between px-4 md:px-8 mb-3 md:mb-4 shadow-sm sticky top-0 z-30">
           <div className="flex items-center gap-3 md:gap-6">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 md:p-2.5 bg-white border border-slate-100 hover:border-rose-200 hover:text-rose-600 rounded-xl transition-all shadow-sm"
+              className="hidden lg:flex p-2 md:p-2.5 bg-white border border-slate-100 hover:border-rose-200 hover:text-rose-600 rounded-xl transition-all shadow-sm"
             >
               {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -228,7 +252,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Shared Upload Overlay */}
+      {/* COMPACT MODULAR INTERACTIVE UPLOAD DIALOG WITH PROGRESS TRACK TRACKER */}
       <AnimatePresence>
         {isUploading && (
           <motion.div
@@ -241,15 +265,47 @@ export default function Dashboard() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-8 md:p-12 rounded-[3rem] text-center shadow-3xl border border-slate-100 max-w-sm w-full"
+              className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 max-w-xs w-full shadow-2xl flex flex-col items-center"
             >
-              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FileText className="text-rose-600 animate-pulse" size={28} />
+              <div className="relative w-24 h-24 flex items-center justify-center mb-4">
+                <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                  <circle
+                    cx="48"
+                    cy="44"
+                    r={radius}
+                    className="stroke-slate-100"
+                    strokeWidth="4"
+                    fill="transparent"
+                  />
+                  <motion.circle
+                    cx="48"
+                    cy="44"
+                    r={radius}
+                    className="stroke-rose-600"
+                    strokeWidth="4"
+                    fill="transparent"
+                    strokeDasharray={circumference}
+                    animate={{ strokeDashoffset }}
+                    transition={{ ease: "easeOut", duration: 0.2 }}
+                  />
+                </svg>
+                <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center shadow-inner relative z-10">
+                  <FileText className="text-rose-600" size={24} />
+                </div>
               </div>
-              <p className="font-black">Indexing Knowledge...</p>
+
+              <div className="text-center w-full">
+                <p className="font-black text-sm text-slate-800 tracking-tight">
+                  Ingesting Document
+                </p>
+                <p className="text-[11px] font-black text-rose-600 mt-0.5 tracking-wide">
+                  {uploadProgress}% Complete
+                </p>
+              </div>
+
               <button
                 onClick={() => setIsUploading(false)}
-                className="mt-6 text-[10px] font-black text-slate-300 hover:text-rose-600 uppercase"
+                className="mt-5 text-[10px] font-black text-slate-400 hover:text-rose-600 uppercase tracking-widest transition-colors outline-none"
               >
                 Cancel
               </button>
@@ -260,4 +316,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

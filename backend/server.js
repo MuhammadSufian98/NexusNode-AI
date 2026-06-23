@@ -12,6 +12,7 @@ import authRoutes from "./src/auth/auth.routes.js";
 import profileRoutes from "./src/profile/profile.routes.js";
 import ragRoutes from "./src/rag/rag.routes.js";
 import chatRoutes from "./src/chat/chat.routes.js";
+import treeRoutes from "./src/routes/tree.routes.js";
 import { notFoundHandler, errorHandler } from "./src/middleware/error.middleware.js";
 import { logger } from "./src/utils/logger.js";
 
@@ -134,6 +135,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/rag", ragRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/rag/tree", treeRoutes);
 
 // Root Fallback
 app.get("/", (req, res) => {

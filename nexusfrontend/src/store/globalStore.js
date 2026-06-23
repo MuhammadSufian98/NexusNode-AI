@@ -17,6 +17,9 @@ export const useGlobal = create((set, get) => ({
   activeConversationId: null,
   conversationsList: [],
   isProcessing: false,
+  activeTreeData: null,
+  isTreeModalOpen: false,
+  generatedTreeDocIds: [],
   overviewData: {
     docsIndexed: "0",
     engineVersion: "v4.2-stable",
@@ -65,6 +68,7 @@ export const useGlobal = create((set, get) => ({
           docsIndexed: mapped.length.toString(),
         },
       });
+      await get().fetchGeneratedTreeIds();
     } catch (error) {
       toast.error(error.message || "Failed to load vault");
     }
@@ -385,5 +389,47 @@ export const useGlobal = create((set, get) => ({
       set({ isProcessing: false });
       toast.error(error.message || "Failed to edit chat message");
     }
+  },
+  fetchGeneratedTreeIds: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/rag/tree/ids`, {
+        method: "GET",
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        set({ generatedTreeDocIds: data });
+      }
+    } catch (error) {
+    }
+  },
+  generateOrFetchTree: async (documentId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/rag/tree/${documentId}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to generate or fetch knowledge tree");
+      }
+      const data = await response.json();
+      const treeData = data.treeData || data;
+      set({
+        activeTreeData: treeData,
+        isTreeModalOpen: true,
+      });
+      const currentIds = get().generatedTreeDocIds || [];
+      if (!currentIds.includes(documentId)) {
+        set({ generatedTreeDocIds: [...currentIds, documentId] });
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to build tree");
+    }
+  },
+  closeTreeModal: () => {
+    set({
+      activeTreeData: null,
+      isTreeModalOpen: false,
+    });
   },
 }));
