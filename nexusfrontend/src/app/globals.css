@@ -1,50 +1,72 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f0f0f0; /* Light background color */
-  --foreground: #333333; /* Darker foreground text color */
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+@theme {
+  --color-theme-bg: var(--bg-primary);
+  --color-theme-card: var(--bg-secondary);
+  --color-theme-surface: var(--bg-surface);
+  --color-theme-border: var(--border-primary);
+  --color-theme-text: var(--text-primary);
+  --color-theme-muted: var(--text-secondary);
+  --color-theme-accent: var(--accent-primary);
+  
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #ffffff; /* Dark background color */
-    --foreground: #e0e0e0; /* Light text color for dark mode */
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-primary, #f8fafc);
+  color: var(--text-primary, #0f172a);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  min-height: 100vh;
 }
 
+/* Custom theme utility classes */
+.bg-theme-main {
+  background-color: var(--bg-primary);
+}
+
+.bg-theme-card {
+  background-color: var(--bg-secondary);
+}
+
+.bg-theme-surface {
+  background-color: var(--bg-surface);
+}
+
+.border-theme {
+  border-color: var(--border-primary);
+}
+
+.text-theme-primary {
+  color: var(--text-primary);
+}
+
+.text-theme-secondary {
+  color: var(--text-secondary);
+}
+
+/* Form and Input styles synced with dynamic theme variable tokens */
 .form-input-container {
   position: relative;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 0.75rem;
   transition: all 0.3s ease;
 }
 
 .form-input-container:focus-within {
-  border-color: #e11d48;
-  background: #fff;
+  border-color: var(--accent-primary);
+  background-color: var(--bg-secondary);
   box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.05);
 }
 
 .form-input-field {
   width: 100%;
   padding: 0.65rem 1rem 0.65rem 2.8rem;
-  background: transparent;
+  background-color: transparent;
   outline: none;
   font-size: 0.85rem;
   font-weight: 500;
-  color: #0f172a;
+  color: var(--text-primary);
 }

@@ -13,7 +13,7 @@ const citationSchema = new mongoose.Schema(
       type: String,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const messageSchema = new mongoose.Schema(
@@ -41,7 +41,7 @@ const messageSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: false } },
 );
 
 const Message = mongoose.model("Message", messageSchema);

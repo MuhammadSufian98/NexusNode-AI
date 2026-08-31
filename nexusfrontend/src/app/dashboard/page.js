@@ -13,6 +13,8 @@ import {
   FileText,
   User,
   LogOut,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 
 import { Toaster } from "react-hot-toast";
@@ -74,7 +76,7 @@ export default function Dashboard() {
     }
   }, [authChecked, isAuthenticated, router]);
 
-  // Simulated upload progress tracking effect
+  // Upload progress tracking effect
   useEffect(() => {
     let interval;
     if (isUploading) {
@@ -83,12 +85,12 @@ export default function Dashboard() {
         setUploadProgress((prev) => {
           if (prev >= 100) {
             clearInterval(interval);
-            setTimeout(() => setIsUploading(false), 400);
+            setTimeout(() => setIsUploading(false), 500);
             return 100;
           }
-          return prev + 5;
+          return prev + 10;
         });
-      }, 150);
+      }, 120);
     }
     return () => clearInterval(interval);
   }, [isUploading, setIsUploading]);
@@ -98,14 +100,25 @@ export default function Dashboard() {
     router.push("/auth");
   };
 
-  // Circular progress stroke calculation parameters
-  const radius = 42;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset =
-    circumference - (uploadProgress / 100) * circumference;
+  const getSectionTitle = () => {
+    switch (activeSection) {
+      case "dashboard":
+        return "Dashboard Overview";
+      case "documents":
+        return "Documents";
+      case "chat":
+        return "Assistant Chat";
+      case "profile":
+        return "User Profile";
+      case "settings":
+        return "Settings";
+      default:
+        return "Workspace";
+    }
+  };
 
   return (
-    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 selection:bg-rose-100 overflow-hidden relative">
+    <div className="h-dvh bg-gradient-to-br from-slate-50 via-rose-50/20 to-orange-50/30 flex font-sans text-slate-900 selection:bg-rose-100 overflow-hidden relative">
       <Toaster position="top-right" />
 
       <Sidebar
@@ -116,119 +129,128 @@ export default function Dashboard() {
       />
 
       <main
-        className={`flex-1 h-dvh min-h-0 flex flex-col w-full transition-[padding-left] duration-500 ease-in-out ${
-          sidebarOpen ? "lg:pl-[260px]" : "lg:pl-[100px]"
+        className={`flex-1 h-dvh min-h-0 flex flex-col w-full transition-[padding-left] duration-300 ease-in-out ${
+          sidebarOpen ? "lg:pl-[266px]" : "lg:pl-[94px]"
         } p-2 md:p-3 lg:p-4 pb-24 md:pb-3 lg:pb-4`}
       >
-        <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-3xl md:rounded-4xl flex items-center justify-between px-4 md:px-8 mb-3 md:mb-4 shadow-sm sticky top-0 z-30">
-          <div className="flex items-center gap-3 md:gap-6">
+        {/* TOP APP HEADER */}
+        <header className="h-14 md:h-16 bg-white/85 backdrop-blur-xl border border-slate-200/90 rounded-2xl md:rounded-3xl flex items-center justify-between px-4 md:px-6 mb-3 shrink-0 relative z-30">
+          <div className="flex items-center gap-3 md:gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="hidden lg:flex p-2 md:p-2.5 bg-white border border-slate-100 hover:border-rose-200 hover:text-rose-600 rounded-xl transition-all shadow-sm"
+              className="hidden lg:flex p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-600 transition-colors cursor-pointer"
+              title="Toggle sidebar"
             >
-              {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+              {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
             </button>
 
             <div className="flex flex-col">
-              <span className="xs:block text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                System / {activeSection}
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Workspace / {activeSection}
               </span>
-              <h1 className="text-lg xl:text-xl font-black tracking-tight text-slate-900">
-                Intelligence <span className="text-rose-600">Center</span>
+              <h1 className="text-base md:text-lg font-bold tracking-tight text-slate-900 leading-tight">
+                {getSectionTitle()}
               </h1>
             </div>
           </div>
 
+          {/* SEARCH BAR */}
           <div className="hidden lg:flex items-center max-w-xs w-full mx-4">
             <div className="relative w-full group">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                size={16}
+                size={14}
               />
               <input
                 type="text"
-                placeholder="Search nodes..."
-                className="w-full bg-slate-100/50 border border-transparent focus:bg-white focus:border-rose-200 rounded-2xl py-2 pl-10 pr-4 text-xs font-bold transition-all outline-none"
+                placeholder="Search..."
+                className="w-full bg-slate-50 border border-slate-200 focus:border-rose-400 focus:bg-white rounded-xl py-1.5 pl-8.5 pr-3 text-xs font-medium transition-colors outline-none text-slate-800 placeholder:text-slate-400"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-5">
-            <div className="flex items-center gap-2 md:gap-3 bg-slate-50 border border-slate-100 px-2 md:px-3 py-1.5 rounded-2xl">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <div className="hidden sm:flex flex-col leading-none">
-                <span className="text-[9px] font-black text-slate-900 uppercase">
-                  Live
-                </span>
-                <span className="text-[8px] font-bold text-slate-400">
-                  {overviewData.engineVersion || "v4.2"}
-                </span>
-              </div>
+          {/* HEADER RIGHT ACTIONS */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* System Status Pill */}
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-xl">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                Online
+              </span>
             </div>
 
-            <button className="hidden xs:flex p-2 md:p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all relative">
-              <Bell size={20} />
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-rose-500 border border-white rounded-full" />
+            {/* Notifications */}
+            <button className="hidden xs:flex p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors relative cursor-pointer border border-transparent hover:border-slate-200">
+              <Bell size={17} />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-gradient-to-r from-rose-500 to-orange-500 rounded-full" />
             </button>
 
+            {/* User Profile Menu */}
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 p-1 md:pr-3 bg-white border border-slate-200 rounded-2xl transition-all shadow-sm"
+                className="flex items-center gap-2 p-1 md:pr-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors cursor-pointer"
               >
-                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white relative overflow-hidden shrink-0">
+                <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-tr from-rose-50 via-orange-50 to-amber-50 border border-rose-200/80 flex items-center justify-center text-rose-600 relative overflow-hidden shrink-0">
                   {user?.avatarUrl || user?.avatar ? (
                     <Image
                       src={user.avatarUrl || user.avatar}
                       alt="User avatar"
                       fill
-                      sizes="36px"
+                      sizes="32px"
                       className="object-cover"
                       unoptimized
                     />
                   ) : (
-                    <User size={16} />
+                    <User size={15} />
                   )}
                 </div>
                 <ChevronDown
-                  size={12}
-                  className={`hidden md:block text-slate-400 transition-transform ${isUserMenuOpen ? "rotate-180" : ""}`}
+                  size={13}
+                  className={`hidden md:block text-slate-400 transition-transform duration-200 ${
+                    isUserMenuOpen ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 
               <AnimatePresence>
                 {isUserMenuOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-3 w-48 md:w-56 bg-white border border-slate-200 rounded-3xl shadow-2xl p-2 z-50"
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-52 bg-white border border-slate-200 rounded-2xl p-1.5 z-50"
                   >
-                    <div className="px-4 py-3 mb-1 border-b border-slate-50">
-                      <p className="text-[9px] font-black text-slate-400 uppercase">
-                        Operator
+                    <div className="px-3 py-2 mb-1 border-b border-slate-100">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                        Signed In
                       </p>
-                      <p className="text-xs font-black text-slate-900 truncate">
-                        {user?.email || "Unknown"}
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {user?.email || "user@nexus.io"}
                       </p>
                     </div>
+
                     <button
                       onClick={() => {
                         setActiveSection("profile");
                         setIsUserMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
                     >
-                      <User size={14} className="text-slate-400" /> Profile
+                      <User size={14} className="text-slate-400" />
+                      <span>Profile Details</span>
                     </button>
+
                     <button
                       onClick={async () => {
                         setIsUserMenuOpen(false);
                         await handleSignOut();
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2 rounded-xl hover:bg-rose-50 text-xs font-bold text-rose-600 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-rose-50 text-xs font-semibold text-rose-600 transition-colors cursor-pointer"
                     >
-                      <LogOut size={14} /> Sign Out
+                      <LogOut size={14} />
+                      <span>Sign Out</span>
                     </button>
                   </motion.div>
                 )}
@@ -237,9 +259,15 @@ export default function Dashboard() {
           </div>
         </header>
 
+        {/* MAIN BODY VIEW */}
         <div className="flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden">
           {activeSection === "dashboard" && <OverviewView />}
-          {activeSection === "documents" && <DocumentsView />}
+          {activeSection === "documents" && (
+            <DocumentsView
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+            />
+          )}
           {activeSection === "profile" && <Profile />}
           {activeSection === "chat" && (
             <NexusChatInterface
@@ -252,64 +280,54 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* COMPACT MODULAR INTERACTIVE UPLOAD DIALOG WITH PROGRESS TRACK TRACKER */}
+      {/* BOTTOM-RIGHT CORNER UPLOAD TOAST / PROCESS BOX */}
       <AnimatePresence>
         {isUploading && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-5 right-5 z-50 bg-white border border-slate-200/90 rounded-2xl p-3.5 w-72 backdrop-blur-md"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 max-w-xs w-full shadow-2xl flex flex-col items-center"
-            >
-              <div className="relative w-24 h-24 flex items-center justify-center mb-4">
-                <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-                  <circle
-                    cx="48"
-                    cy="44"
-                    r={radius}
-                    className="stroke-slate-100"
-                    strokeWidth="4"
-                    fill="transparent"
-                  />
-                  <motion.circle
-                    cx="48"
-                    cy="44"
-                    r={radius}
-                    className="stroke-rose-600"
-                    strokeWidth="4"
-                    fill="transparent"
-                    strokeDasharray={circumference}
-                    animate={{ strokeDashoffset }}
-                    transition={{ ease: "easeOut", duration: 0.2 }}
-                  />
-                </svg>
-                <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center shadow-inner relative z-10">
-                  <FileText className="text-rose-600" size={24} />
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-rose-50 via-orange-50 to-amber-50 border border-rose-200/80 flex items-center justify-center text-rose-600">
+                  {uploadProgress === 100 ? (
+                    <CheckCircle2 size={15} className="text-emerald-500" />
+                  ) : (
+                    <Loader2 size={15} className="animate-spin text-rose-600" />
+                  )}
                 </div>
-              </div>
-
-              <div className="text-center w-full">
-                <p className="font-black text-sm text-slate-800 tracking-tight">
-                  Ingesting Document
-                </p>
-                <p className="text-[11px] font-black text-rose-600 mt-0.5 tracking-wide">
-                  {uploadProgress}% Complete
-                </p>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">
+                    {uploadProgress === 100
+                      ? "Indexed Successfully"
+                      : "Uploading Document"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {uploadProgress}% processed
+                  </p>
+                </div>
               </div>
 
               <button
                 onClick={() => setIsUploading(false)}
-                className="mt-5 text-[10px] font-black text-slate-400 hover:text-rose-600 uppercase tracking-widest transition-colors outline-none"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
+                title="Dismiss"
               >
-                Cancel
+                <X size={13} />
               </button>
-            </motion.div>
+            </div>
+
+            {/* 3-Color Seamless Gradient Progress Bar */}
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-rose-600 via-rose-500 to-orange-500 rounded-full"
+                animate={{ width: `${uploadProgress}%` }}
+                transition={{ ease: "easeOut", duration: 0.2 }}
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

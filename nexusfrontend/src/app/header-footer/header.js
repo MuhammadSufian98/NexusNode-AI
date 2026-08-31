@@ -13,15 +13,15 @@ import {
   Shield,
   LayoutDashboard,
   LogIn,
+  Sparkles,
 } from "lucide-react";
 import GlassButton from "@/component/Button";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/store/authStore";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Destructure user from Auth Context
   const { user } = useAuth();
 
   useEffect(() => {
@@ -37,30 +37,34 @@ const Header = () => {
   }, [mobileMenuOpen]);
 
   const navItems = [
-    { name: "How it works", link: "#how-it-works", icon: <Zap size={18} /> },
-    { name: "Features", link: "#features", icon: <Shield size={18} /> },
-    { name: "Pricing", link: "#pricing", icon: <Globe size={18} /> },
+    { name: "How it works", link: "#how-it-works", icon: <Zap size={15} /> },
+    { name: "Features", link: "#features", icon: <Shield size={15} /> },
+    { name: "Architecture", link: "#architecture", icon: <Globe size={15} /> },
   ];
 
-  // Helper component to avoid repetition
   const AuthButton = ({ mobile = false }) => (
-    <Link href={user ? "/dashboard" : "/auth/login"}>
+    <Link
+      href={user ? "/dashboard" : "/auth/login"}
+      className={mobile ? "w-full" : ""}
+    >
       <GlassButton
         className={`${
           mobile
-            ? "w-full py-4 rounded-2xl"
-            : "text-[12px] px-6 py-2.5 rounded-xl"
-        } font-bold uppercase tracking-wider flex items-center justify-center gap-2 bg-linear-to-r from-rose-600 to-orange-500 border-none text-white shadow-lg shadow-rose-200 hover:scale-105 active:scale-95 transition-all`}
+            ? "w-full py-3.5 rounded-full"
+            : isScrolled
+              ? "text-[11px] px-4 py-1.5 rounded-full"
+              : "text-[12px] px-5 py-2 rounded-full"
+        } font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 bg-gradient-to-r from-rose-600 to-orange-500 border-none text-white shadow-md shadow-rose-500/20 dark:shadow-rose-950/40 hover:scale-105 active:scale-95 transition-all`}
       >
         {user ? (
           <>
-            {mobile && <LayoutDashboard size={20} />} Launch App
-            <ChevronRight size={14} />
+            {mobile && <LayoutDashboard size={18} />} Launch App
+            <ChevronRight size={13} />
           </>
         ) : (
           <>
             Sign In
-            <LogIn size={14} />
+            <LogIn size={13} />
           </>
         )}
       </GlassButton>
@@ -69,64 +73,92 @@ const Header = () => {
 
   return (
     <>
-      <div className="fixed top-0 w-full z-50 px-[5%] py-4 md:px-10 pointer-events-none">
+      <div
+        className={`fixed top-0 left-0 w-full z-50 pointer-events-none transition-all duration-500 ease-out flex justify-center ${
+          isScrolled ? "px-4 sm:px-6 pt-3" : "px-0 pt-0"
+        }`}
+      >
         <motion.header
-          initial={{ y: -100, opacity: 0 }}
-          animate={{
-            y: 0,
-            opacity: 1,
-            width: isScrolled ? "auto" : "100%",
-          }}
-          className={`mx-auto flex items-center justify-between px-5 md:px-8 pointer-events-auto transition-all duration-500 rounded-4xl border border-white/40 shadow-2xl shadow-rose-100/20 backdrop-blur-2xl ${
+          layout
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className={`pointer-events-auto flex items-center justify-between transition-colors duration-300 ${
             isScrolled
-              ? "bg-white/70 py-2.5 mt-2 max-w-4xl"
-              : "bg-white/40 py-4 mt-0 max-w-7xl"
+              ? "w-full max-w-5xl px-5 sm:px-7 py-2 rounded-full border border-[var(--border-primary)] bg-[var(--bg-glass)] shadow-xl shadow-black/5 backdrop-blur-2xl"
+              : "w-full max-w-none px-6 sm:px-12 lg:px-16 py-4 rounded-none border-b border-[var(--border-primary)] bg-[var(--bg-primary)]/80 backdrop-blur-md"
           }`}
         >
-          {/* LOGO */}
+          {/* LOGO & BRAND */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="relative w-8 h-8 md:w-9 md:h-9 group-hover:rotate-12 transition-transform duration-500">
+            <div
+              className={`relative transition-all duration-300 group-hover:scale-105 ${
+                isScrolled ? "w-7 h-7" : "w-8 h-8 md:w-9 md:h-9"
+              }`}
+            >
               <Image
                 src="/favicon/logo.png"
                 alt="NexusNode AI Logo"
                 fill
-                sizes="40px"
+                sizes="36px"
                 className="object-contain"
                 priority
               />
             </div>
-            <span className="text-base md:text-lg font-black tracking-tight text-slate-900">
-              NexusNode<span className="text-rose-600">AI</span>
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`font-black tracking-tight text-[var(--text-primary)] transition-all duration-300 ${
+                  isScrolled ? "text-sm md:text-base" : "text-base md:text-lg"
+                }`}
+              >
+                NexusNode
+                <span className="text-[var(--accent-primary)]">AI</span>
+              </span>
+              <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded-md border border-[var(--border-primary)] bg-[var(--bg-surface)] text-[var(--text-muted)] font-semibold">
+                v2.4
+              </span>
+            </div>
           </Link>
 
           {/* DESKTOP NAV */}
-          <nav className="hidden md:flex items-center gap-6">
-            <div className="flex items-center gap-1 bg-slate-900/5 rounded-2xl p-1 border border-slate-200/20">
+          <nav className="hidden md:flex items-center gap-3">
+            <div
+              className={`flex items-center gap-1 rounded-full border border-[var(--border-primary)] bg-[var(--bg-secondary)]/80 transition-all duration-300 ${
+                isScrolled ? "p-1" : "p-1.5"
+              }`}
+            >
               {navItems.map((item) => (
                 <Link
                   key={item.name}
                   href={item.link}
-                  className="px-4 py-2 text-[13px] font-bold text-slate-600 hover:text-rose-600 rounded-xl hover:bg-white transition-all"
+                  className={`flex items-center gap-1.5 font-semibold text-[var(--text-secondary)] hover:text-[var(--accent-primary)] rounded-full hover:bg-[var(--bg-surface)] transition-all ${
+                    isScrolled
+                      ? "px-3.5 py-1 text-xs"
+                      : "px-4 py-1.5 text-[13px]"
+                  }`}
                 >
                   {item.name}
                 </Link>
               ))}
             </div>
+
+            <ThemeToggle />
             <AuthButton />
           </nav>
 
           {/* MOBILE TOGGLE */}
-          <button
-            className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-900/5 text-slate-900"
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <Menu size={24} />
-          </button>
+          <div className="flex md:hidden items-center gap-2">
+            <ThemeToggle />
+            <button
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-primary)] cursor-pointer"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open Navigation Menu"
+            >
+              <Menu size={18} />
+            </button>
+          </div>
         </motion.header>
       </div>
 
-      {/* MOBILE MENU */}
+      {/* MOBILE DRAWER */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
@@ -135,34 +167,37 @@ const Header = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-60 md:hidden"
+              className="fixed inset-0 bg-black/50 backdrop-blur-xs z-60 md:hidden"
             />
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 bottom-0 w-[80%] max-w-xs bg-white z-70 shadow-2xl md:hidden flex flex-col"
+              className="fixed top-0 right-0 bottom-0 w-[80%] max-w-xs bg-[var(--bg-secondary)] z-70 shadow-2xl md:hidden flex flex-col border-l border-[var(--border-primary)]"
             >
-              <div className="p-6 flex items-center justify-between border-b">
-                <span className="font-black text-slate-900">Navigation</span>
+              <div className="p-5 flex items-center justify-between border-b border-[var(--border-primary)]">
+                <span className="font-bold text-sm text-[var(--text-primary)]">
+                  Navigation
+                </span>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 bg-slate-50 rounded-lg"
+                  className="p-1.5 bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-full border border-[var(--border-primary)]"
+                  aria-label="Close Menu"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-2">
+              <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
                 {navItems.map((item) => (
                   <Link
                     key={item.name}
                     href={item.link}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-4 p-4 rounded-2xl hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold transition-colors group"
+                    className="flex items-center gap-3 p-3 rounded-full hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] font-semibold text-sm transition-colors group"
                   >
-                    <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-white transition-colors">
+                    <div className="p-1.5 rounded-full bg-[var(--bg-surface)] group-hover:bg-[var(--bg-secondary)] transition-colors text-[var(--accent-primary)]">
                       {item.icon}
                     </div>
                     {item.name}
@@ -170,10 +205,10 @@ const Header = () => {
                 ))}
               </div>
 
-              <div className="p-6 border-t bg-slate-50/50">
+              <div className="p-5 border-t border-[var(--border-primary)] bg-[var(--bg-primary)]/50">
                 <AuthButton mobile />
-                <p className="text-center text-[10px] text-slate-400 mt-4 font-medium uppercase tracking-[0.2em]">
-                  NexusNode AI v1.0
+                <p className="text-center text-[10px] text-[var(--text-muted)] mt-3 font-mono uppercase tracking-wider">
+                  NexusNode AI • Multimodal RAG
                 </p>
               </div>
             </motion.div>

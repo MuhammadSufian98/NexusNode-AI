@@ -32,14 +32,11 @@ const uploadPDFToCloudinary = (fileBuffer, originalName) => {
   });
 };
 
+import { getLocalEmbedding } from "../utils/localEmbedding.js";
+
 export async function getEmbedding(text) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-    const result = await model.embedContent({
-      content: { parts: [{ text }] },
-      outputDimensionality: 768,
-    });
-    return result.embedding.values;
+    return await getLocalEmbedding(text);
   } catch (error) {
     logger.error("rag_embedding_failed", { error: error.message });
     throw new Error("Failed to generate embedding.");
@@ -57,70 +54,97 @@ export const uploadAndProcessPDF = async (req, res) => {
       ? new mongoose.Types.ObjectId(workspace_id)
       : undefined;
 
-    const data = await pdf(req.file.buffer);
-
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    });
-    const chunks = await splitter.splitText(data.text);
-
-    const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
-    const docsToSave = [];
-    const batchSize = 100;
-
-    for (let i = 0; i < chunks.length; i += batchSize) {
-      const currentBatch = chunks.slice(i, i + batchSize);
-
-      const batchResponse = await model.batchEmbedContents({
-        requests: currentBatch.map((text) => ({
-          content: { parts: [{ text }] },
-          model: "models/gemini-embedding-001",
-          outputDimensionality: 768,
-        })),
-      });
-
-      const batchDocs = batchResponse.embeddings.map((emb, idx) => ({
-        documentId: null,
-        userId: req.user._id,
-        workspace_id: workspaceId,
-        fileName: req.file.originalname,
-        text: currentBatch[idx],
-        embedding: emb.values,
-        metadata: {
-          pageNumber: 1,
-        },
-      }));
-
-      docsToSave.push(...batchDocs);
-
-      if (chunks.length > batchSize) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
+    // 1. Upload to Cloudinary first to get required fields for parent document
+    let cloudinaryResult;
+    try {
+      cloudinaryResult = await uploadPDFToCloudinary(req.file.buffer, req.file.originalname);
+    } catch (uploadError) {
+      logger.error("cloudinary_upload_failed", { error: uploadError.message });
+      return res.status(500).json({ error: "Failed to upload file to Cloudinary storage." });
     }
 
-    const cloudinaryResult = await uploadPDFToCloudinary(req.file.buffer, req.file.originalname);
-
+    // 2. Create the document record with 'processing' status
     const parentDoc = await Document.create({
       userId: req.user._id,
       workspace_id: workspaceId,
       fileName: req.file.originalname,
       pdfUrl: cloudinaryResult.secure_url,
       cloudinaryPublicId: cloudinaryResult.public_id,
+      status: "processing",
     });
 
-    for (const chunk of docsToSave) {
-      chunk.documentId = parentDoc._id;
+    // 3. Process the file contents inside a try...catch block
+    try {
+      let data;
+      try {
+        data = await pdf(req.file.buffer);
+      } catch (parseError) {
+        throw new Error("Failed to parse PDF. The file may be corrupted or invalid.");
+      }
+
+      if (!data.text || data.text.trim().length === 0) {
+        throw new Error("Failed to extract any text from the PDF.");
+      }
+
+      // Chunking: RecursiveCharacterTextSplitter with chunkSize: 1200, chunkOverlap: 200
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1200,
+        chunkOverlap: 200,
+      });
+      const chunks = await splitter.splitText(data.text);
+
+      if (chunks.length === 0) {
+        throw new Error("No text chunks could be generated from the PDF text.");
+      }
+
+      // Local vector generation using getLocalEmbedding
+      const docsToSave = [];
+      for (const chunkText of chunks) {
+        const embedding = await getLocalEmbedding(chunkText);
+        docsToSave.push({
+          documentId: parentDoc._id,
+          userId: req.user._id,
+          workspace_id: workspaceId,
+          fileName: req.file.originalname,
+          text: chunkText,
+          embedding: embedding,
+          metadata: {
+            pageNumber: 1,
+          },
+        });
+      }
+
+      // Bulk-insert DocumentChunk records
+      await DocumentChunk.insertMany(docsToSave);
+
+      // Update document status to 'ready'
+      parentDoc.status = "ready";
+      parentDoc.chunkCount = chunks.length;
+      await parentDoc.save();
+
+      return res.status(200).json({
+        message: `Successfully indexed ${chunks.length} chunks.`,
+        document: parentDoc,
+      });
+
+    } catch (processingError) {
+      logger.error("pdf_processing_failed", { error: processingError.message, documentId: parentDoc._id });
+      
+      // Update document status to 'failed' and save errorMessage
+      parentDoc.status = "failed";
+      parentDoc.errorMessage = processingError.message;
+      await parentDoc.save();
+
+      // Return HTTP 200 with the failed status object so client can handle warning state immediately
+      return res.status(200).json({
+        message: "Document processing failed.",
+        document: parentDoc,
+      });
     }
 
-    await DocumentChunk.insertMany(docsToSave);
-
-    res.json({
-      message: `Successfully indexed ${chunks.length} chunks.`,
-      document: parentDoc,
-    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    logger.error("upload_and_process_pdf_root_failed", { error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 

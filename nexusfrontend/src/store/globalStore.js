@@ -2,38 +2,68 @@
 
 import { create } from "zustand";
 import { toast } from "react-hot-toast";
-import API_BASE_URL from "@/lib/apiBaseUrl";
-
-const createInitialDocuments = () => [];
+import { ragApi, chatApi, overviewApi } from "@/utils/apiServices";
 
 export const useGlobal = create((set, get) => ({
   activeSection: "dashboard",
   sidebarOpen: false,
   isUploading: false,
-  documents: createInitialDocuments(),
+  documents: [],
   selectedDocument: null,
   messages: [],
   conversationId: null,
   activeConversationId: null,
   conversationsList: [],
+  conversations: [],
   isProcessing: false,
   activeTreeData: null,
   isTreeModalOpen: false,
   generatedTreeDocIds: [],
+  abortController: null,
   overviewData: {
-    docsIndexed: "0",
-    engineVersion: "v4.2-stable",
+    totalDocuments: 0,
+    readyDocuments: 0,
+    totalChunks: 0,
+    totalStorageBytes: 0,
+    totalStorageFormatted: "0 KB",
+    totalConversations: 0,
+    totalMessages: 0,
     contextDepth: 0,
-    spaceUsed: "0GB",
-    maskedPII: "0",
-    chunks: "0",
-    velocityData: [],
+    encryptionStandard: "AES-256",
+    engineVersion: "v4.2-RAG",
+    topicDistribution: [],
   },
+
   setActiveSection: (activeSection) => set({ activeSection }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setIsUploading: (isUploading) => set({ isUploading }),
   setDocuments: (documents) => set({ documents }),
-  setSelectedDocument: (selectedDocument) => set({ selectedDocument, messages: [], conversationId: null, activeConversationId: null }),
+
+  setSelectedDocument: (selectedDocument) => {
+    if (get().abortController) {
+      get().abortController.abort();
+    }
+    set({
+      selectedDocument,
+      messages: [],
+      conversationId: null,
+      activeConversationId: null,
+      conversations: [],
+      conversationsList: [],
+      abortController: null,
+      isProcessing: false,
+    });
+  },
+
+  cancelGeneration: () => {
+    const controller = get().abortController;
+    if (controller) {
+      controller.abort();
+      set({ abortController: null, isProcessing: false });
+      toast.success("Generation stopped.");
+    }
+  },
+
   setMessages: (messages) => set({ messages }),
   setIsProcessing: (isProcessing) => set({ isProcessing }),
   setOverviewData: (updater) =>
@@ -41,258 +71,369 @@ export const useGlobal = create((set, get) => ({
       overviewData:
         typeof updater === "function" ? updater(state.overviewData) : updater,
     })),
+
+  // 1. Fetch Documents
   fetchDocuments: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rag/documents`, {
-        method: "GET",
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch documents");
-      }
-      const data = await response.json();
-      const mapped = data.map((doc) => ({
-        id: doc._id,
-        name: doc.fileName,
+      const data = await ragApi.getDocuments();
+      const docsArray = Array.isArray(data) ? data : data.documents || [];
+      const mapped = docsArray.map((doc) => ({
+        id: doc._id || doc.id,
+        _id: doc._id || doc.id,
+        name: doc.fileName || doc.name || "Untitled Document",
+        title: doc.fileName || doc.title || "Untitled Document",
         pdfUrl: doc.pdfUrl,
         workspace_id: doc.workspace_id,
-        size: "N/A",
-        pages: 0,
-        uploadedAt: new Date(doc.uploadedAt),
-        status: "ready",
+        size: doc.size || "N/A",
+        pages: doc.pages || 0,
+        uploadedAt: new Date(doc.uploadedAt || doc.createdAt || Date.now()),
+        status: doc.status || "ready",
+        errorMessage: doc.errorMessage || "",
       }));
+
       set({
         documents: mapped,
-        overviewData: {
-          ...get().overviewData,
-          docsIndexed: mapped.length.toString(),
-        },
       });
       await get().fetchGeneratedTreeIds();
     } catch (error) {
-      toast.error(error.message || "Failed to load vault");
+      toast.error(error.message || "Failed to load document vault.");
     }
   },
+
+  // 2. Upload Document
   handleFileUpload: async (e) => {
     const file = e.target?.files ? e.target.files[0] : null;
     if (!file) return;
 
     set({ isUploading: true });
 
+    const tempId = Date.now().toString();
+    const newDocPlaceholder = {
+      id: tempId,
+      _id: tempId,
+      name: file.name,
+      title: file.name,
+      pdfUrl: "",
+      workspace_id: "",
+      size: `${(file.size / 1024 / 1024).toFixed(1)}MB`,
+      pages: 0,
+      uploadedAt: new Date(),
+      status: "processing",
+      errorMessage: "",
+    };
+
+    set((state) => ({
+      documents: [newDocPlaceholder, ...state.documents],
+    }));
+
     try {
-      const formData = new FormData();
-      formData.append("pdf", file);
+      const payload = await ragApi.uploadDocument(file);
+      const uploadedDoc = payload.document || payload;
 
-      const response = await fetch(`${API_BASE_URL}/api/rag/upload`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
+      set((state) => ({
+        documents: state.documents.map((doc) =>
+          doc.id === tempId
+            ? {
+                ...doc,
+                id: uploadedDoc._id || uploadedDoc.id,
+                _id: uploadedDoc._id || uploadedDoc.id,
+                pdfUrl: uploadedDoc.pdfUrl,
+                workspace_id: uploadedDoc.workspace_id,
+                status: uploadedDoc.status || "ready",
+                errorMessage: uploadedDoc.errorMessage || "",
+              }
+            : doc,
+        ),
+      }));
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const payload = await response.json();
-      const currentDocuments = get().documents;
-      const newDoc = {
-        id: payload.document._id,
-        name: payload.document.fileName,
-        pdfUrl: payload.document.pdfUrl,
-        workspace_id: payload.document.workspace_id,
-        size: `${(file.size / 1024 / 1024).toFixed(1)}MB`,
-        pages: 0,
-        uploadedAt: new Date(payload.document.uploadedAt),
-        status: "ready",
-      };
-
-      set({
-        documents: [newDoc, ...currentDocuments],
-        overviewData: {
-          ...get().overviewData,
-          docsIndexed: (currentDocuments.length + 1).toString(),
-        },
-      });
-
-      toast.success("Document indexed!");
+      toast.success("Document indexed successfully!");
+      await get().fetchOverviewData();
     } catch (error) {
+      set((state) => ({
+        documents: state.documents.map((doc) =>
+          doc.id === tempId
+            ? {
+                ...doc,
+                status: "failed",
+                errorMessage:
+                  error.message || "Failed to create embeddings for this PDF",
+              }
+            : doc,
+        ),
+      }));
       toast.error(error.message || "Upload failed");
     } finally {
       set({ isUploading: false });
     }
   },
+
+  // 3. Delete Document
   handleDeleteDoc: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rag/documents/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to delete document");
-      }
+      await ragApi.deleteDocument(id);
       const { documents, selectedDocument } = get();
       set({
-        documents: documents.filter((doc) => doc.id !== id),
-        selectedDocument: selectedDocument?.id === id ? null : selectedDocument,
-        overviewData: {
-          ...get().overviewData,
-          docsIndexed: (documents.length - 1).toString(),
-        },
+        documents: documents.filter((doc) => doc.id !== id && doc._id !== id),
+        selectedDocument:
+          selectedDocument?.id === id || selectedDocument?._id === id
+            ? null
+            : selectedDocument,
       });
-      toast.success("Document removed");
+      toast.success("Document removed from vault.");
+      await get().fetchOverviewData();
     } catch (error) {
       toast.error(error.message || "Failed to remove document");
     }
   },
+
+  // 4. Select Document with Verification
+  selectDocument: async (doc) => {
+    if (doc.status !== "ready") {
+      toast.error(`Document is not ready: status is "${doc.status}"`);
+      return false;
+    }
+    const docId = doc._id || doc.id;
+    get().setSelectedDocument(doc);
+    await get().loadUserChatThreads(docId);
+    return true;
+  },
+
+  // 5. Send Chat Message
   sendMessage: async (text) => {
     if (!text.trim()) return;
     const selectedDocument = get().selectedDocument;
-    if (!selectedDocument) return;
+    if (!selectedDocument) {
+      toast.error("Please select a document first.");
+      return;
+    }
 
-    const userMsg = { id: Date.now().toString(), role: "user", content: text };
+    const docId = selectedDocument._id || selectedDocument.id;
+    let currentConversationId =
+      get().activeConversationId || get().conversationId;
+
+    if (!currentConversationId) {
+      const newSession = await get().createChatSession(docId);
+      currentConversationId = newSession?._id || newSession?.id;
+      if (!currentConversationId) {
+        toast.error("Could not establish a chat session.");
+        return;
+      }
+    }
+
+    if (get().abortController) {
+      get().abortController.abort();
+    }
+
+    const userMsgId = Date.now().toString();
+    const assistantMsgId = (Date.now() + 1).toString();
+
+    const userMsg = {
+      id: userMsgId,
+      _id: userMsgId,
+      role: "user",
+      content: text,
+      createdAt: new Date().toISOString(),
+    };
+
+    const assistantPlaceholder = {
+      id: assistantMsgId,
+      _id: assistantMsgId,
+      role: "assistant",
+      content: "",
+      citations: [],
+      createdAt: new Date().toISOString(),
+    };
+
     set((state) => ({
-      messages: [...state.messages, userMsg],
+      messages: [...state.messages, userMsg, assistantPlaceholder],
       isProcessing: true,
     }));
 
+    const controller = new AbortController();
+    set({ abortController: controller });
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/message`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: text,
-          conversationId: get().activeConversationId || undefined,
-          documentId: selectedDocument.id,
-        }),
+      const data = await chatApi.sendMessage({
+        message: text,
+        conversationId: currentConversationId,
+        documentId: docId,
+        signal: controller.signal,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to retrieve response");
-      }
+      const answer =
+        data.assistantMessage?.content ||
+        data.answer ||
+        "No response generated.";
+      const citations = (
+        data.assistantMessage?.citations ||
+        data.citations ||
+        []
+      ).map((c) => ({
+        documentId: c.documentId || docId,
+        fileName: c.fileName || "Document.pdf",
+        pageNumber: c.pageNumber || 1,
+        textSnippet: c.textSnippet || c.snippet || "",
+      }));
 
-      const payload = await response.json();
-      set({
-        conversationId: payload?.conversationId || null,
-        activeConversationId: payload?.conversationId || null,
-      });
-      await get().loadConversationMessages(payload.conversationId);
-      await get().loadUserChatThreads(selectedDocument.id);
-      set({ isProcessing: false });
+      const finalConvId =
+        data.conversationId || data.sessionId || currentConversationId;
+
+      set((state) => ({
+        conversationId: finalConvId,
+        activeConversationId: finalConvId,
+        messages: state.messages.map((msg) =>
+          msg.id === assistantMsgId
+            ? {
+                ...msg,
+                id: data.assistantMessage?._id || assistantMsgId,
+                _id: data.assistantMessage?._id || assistantMsgId,
+                content: answer,
+                citations: citations,
+              }
+            : msg,
+        ),
+        conversationsList: state.conversationsList.map((c) =>
+          c._id === finalConvId || c.id === finalConvId
+            ? {
+                ...c,
+                lastMessage: text.slice(0, 50),
+                updatedAt: new Date().toISOString(),
+              }
+            : c,
+        ),
+        conversations: state.conversations.map((c) =>
+          c._id === finalConvId || c.id === finalConvId
+            ? {
+                ...c,
+                lastMessage: text.slice(0, 50),
+                updatedAt: new Date().toISOString(),
+              }
+            : c,
+        ),
+      }));
+
       toast.success("Insight retrieved!");
     } catch (error) {
-      set({ isProcessing: false });
-      toast.error(error.message || "Message failed");
+      if (error.name === "CanceledError" || error.name === "AbortError") {
+        set((state) => ({
+          messages: state.messages.filter((m) => m.id !== assistantMsgId),
+        }));
+      } else {
+        set((state) => ({
+          messages: state.messages.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  content: `Error: ${error.message || "Request failed"}`,
+                }
+              : msg,
+          ),
+        }));
+        toast.error(error.message || "Failed to send message");
+      }
+    } finally {
+      set({ isProcessing: false, abortController: null });
     }
   },
-  createNewChatSession: async (workspaceId) => {
-    set({
-      activeConversationId: null,
-      conversationId: null,
-      messages: [],
-      isProcessing: true,
-    });
+
+  // 6. Create Chat Session
+  createChatSession: async (documentId) => {
+    const targetDocId =
+      documentId || get().selectedDocument?.id || get().selectedDocument?._id;
+    if (!targetDocId || targetDocId === "undefined") {
+      toast.error("Please select a document first to start a chat session.");
+      return null;
+    }
+
+    set({ isProcessing: true });
     try {
-      const selectedDocument = get().selectedDocument;
-      const docIds = selectedDocument ? [selectedDocument.id] : [];
+      const payload = await chatApi.createConversation(
+        targetDocId,
+        "New Conversation",
+      );
+      const newConv = payload.conversation ||
+        payload.session || {
+          _id: payload.conversationId,
+          id: payload.conversationId,
+          documentId: targetDocId,
+          title: "New Conversation",
+          updatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        };
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversation`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          workspace_id: workspaceId || undefined,
-          documentIds: docIds,
-        }),
-      });
+      const newConvId = newConv._id || newConv.id;
 
-      if (!response.ok) {
-        throw new Error("Failed to create chat session");
-      }
-
-      const payload = await response.json();
-      set({
-        activeConversationId: payload.conversationId,
-        conversationId: payload.conversationId,
+      set((state) => ({
+        activeConversationId: newConvId,
+        conversationId: newConvId,
+        conversations: [
+          newConv,
+          ...state.conversations.filter(
+            (c) => c._id !== newConvId && c.id !== newConvId,
+          ),
+        ],
+        conversationsList: [
+          newConv,
+          ...state.conversationsList.filter(
+            (c) => c._id !== newConvId && c.id !== newConvId,
+          ),
+        ],
         messages: [],
         isProcessing: false,
-      });
+      }));
 
-      await get().loadUserChatThreads(workspaceId);
       toast.success("New chat initialized!");
+      return newConv;
     } catch (error) {
       set({ isProcessing: false });
       toast.error(error.message || "Failed to start new chat");
+      return null;
     }
   },
-  loadUserChatThreads: async (workspaceId) => {
+
+  // Aliases for compatibility
+  createNewChatSession: async (documentId) =>
+    get().createChatSession(documentId),
+  createSession: async (documentId) => get().createChatSession(documentId),
+
+  // 7. Load Conversation List for Document
+  loadUserChatThreads: async (documentId) => {
     try {
-      const activeWorkspaceId = workspaceId || get().selectedDocument?.id;
-      let url = `${API_BASE_URL}/api/chat/conversations`;
-      if (activeWorkspaceId) {
-        url += `?workspace_id=${activeWorkspaceId}`;
-      }
-      const response = await fetch(url, {
-        method: "GET",
-        credentials: "include",
+      const targetDocId =
+        documentId || get().selectedDocument?.id || get().selectedDocument?._id;
+      const data = await chatApi.getConversations(targetDocId);
+      const rawList = Array.isArray(data)
+        ? data
+        : data.conversations || data.sessions || [];
+      const list = rawList.map((c) => ({
+        ...c,
+        id: c._id || c.id,
+        _id: c._id || c.id,
+      }));
+
+      set({
+        conversationsList: list,
+        conversations: list,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch threads");
-      }
-
-      const data = await response.json();
-      set({ conversationsList: data });
-
-      if (data.length > 0 && !get().activeConversationId) {
-        const firstThreadId = data[0]._id || data[0].id;
-        get().selectChatSession(firstThreadId);
+      if (list.length > 0 && !get().activeConversationId) {
+        const firstThreadId = list[0]._id || list[0].id;
+        await get().selectChatSession(firstThreadId);
+      } else if (list.length === 0) {
+        set({
+          activeConversationId: null,
+          conversationId: null,
+          messages: [],
+        });
       }
     } catch (error) {
       toast.error(error.message || "Failed to load chat history");
     }
   },
-  loadConversationMessages: async (conversationId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/messages`, {
-        method: "GET",
-        credentials: "include",
-      });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch messages");
-      }
-
-      const data = await response.json();
-      const mapped = data.map((msg) => ({
-        id: msg._id,
-        role: msg.role,
-        content: msg.content,
-        citations: msg.citations?.map((c) => ({
-          documentId: c.documentId,
-          fileName: c.fileName || "Unknown File",
-          textSnippet: c.textSnippet || "",
-        })) || [],
-        isEdited: msg.isEdited || false,
-        createdAt: msg.createdAt,
-      }));
-
-      mapped.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-
-      set({
-        activeConversationId: conversationId,
-        conversationId: conversationId,
-        messages: mapped,
-      });
-    } catch (error) {
-      toast.error(error.message || "Failed to load thread message history");
-    }
-  },
+  // 8. Select and Load Specific Conversation Messages
   selectChatSession: async (conversationId) => {
+    if (!conversationId) return;
     set({
       activeConversationId: conversationId,
       conversationId: conversationId,
@@ -300,30 +441,26 @@ export const useGlobal = create((set, get) => ({
       isProcessing: true,
     });
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversations/${conversationId}/messages`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch messages");
-      }
-
-      const data = await response.json();
-      const mapped = data.map((msg) => ({
-        id: msg._id,
+      const data = await chatApi.getMessages(conversationId);
+      const rawMessages = Array.isArray(data) ? data : data.messages || [];
+      const mapped = rawMessages.map((msg) => ({
+        id: msg._id || msg.id,
+        _id: msg._id || msg.id,
         role: msg.role,
         content: msg.content,
-        citations: msg.citations?.map((c) => ({
+        citations: (msg.citations || []).map((c) => ({
           documentId: c.documentId,
-          fileName: c.fileName || "Unknown File",
-          textSnippet: c.textSnippet || "",
-        })) || [],
+          fileName: c.fileName || "Document.pdf",
+          pageNumber: c.pageNumber || 1,
+          textSnippet: c.textSnippet || c.snippet || "",
+        })),
         isEdited: msg.isEdited || false,
         createdAt: msg.createdAt,
       }));
 
-      mapped.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+      mapped.sort(
+        (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+      );
 
       set({
         messages: mapped,
@@ -331,20 +468,20 @@ export const useGlobal = create((set, get) => ({
       });
     } catch (error) {
       set({ isProcessing: false });
-      toast.error(error.message || "Failed to load thread message history");
+      toast.error(error.message || "Failed to load message history");
     }
   },
+
+  // Aliases for compatibility
+  loadSessionMessages: async (conversationId) =>
+    get().selectChatSession(conversationId),
+  loadConversationMessages: async (conversationId) =>
+    get().selectChatSession(conversationId),
+
+  // 9. Delete Chat Session
   deleteChatSession: async (conversationId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/conversation/${conversationId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete chat session");
-      }
-
+      await chatApi.deleteConversation(conversationId);
       const activeId = get().activeConversationId;
       if (activeId === conversationId) {
         set({
@@ -354,65 +491,51 @@ export const useGlobal = create((set, get) => ({
         });
       }
 
-      const selectedDocument = get().selectedDocument;
-      await get().loadUserChatThreads(selectedDocument ? selectedDocument.id : undefined);
+      const targetDocId =
+        get().selectedDocument?.id || get().selectedDocument?._id;
+      await get().loadUserChatThreads(targetDocId);
 
       toast.success("Chat deleted successfully");
     } catch (error) {
       toast.error(error.message || "Failed to delete chat session");
     }
   },
+
+  // 10. Edit Message
   editMessagePrompt: async (messageId, newContent) => {
     try {
       set({ isProcessing: true });
-      const response = await fetch(`${API_BASE_URL}/api/chat/message/${messageId}`, {
-        method: "PUT",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          content: newContent,
-        }),
-      });
+      await chatApi.editMessage(messageId, newContent);
 
-      if (!response.ok) {
-        throw new Error("Failed to edit chat message");
+      const activeId = get().activeConversationId;
+      if (activeId) {
+        await get().selectChatSession(activeId);
       }
+      const targetDocId =
+        get().selectedDocument?.id || get().selectedDocument?._id;
+      await get().loadUserChatThreads(targetDocId);
 
-      await get().loadConversationMessages(get().activeConversationId);
-      const selectedDocument = get().selectedDocument;
-      await get().loadUserChatThreads(selectedDocument ? selectedDocument.id : undefined);
       set({ isProcessing: false });
-      toast.success("Message updated and context regenerated!");
+      toast.success("Message updated!");
     } catch (error) {
       set({ isProcessing: false });
       toast.error(error.message || "Failed to edit chat message");
     }
   },
+
+  // 11. Knowledge Tree Helpers
   fetchGeneratedTreeIds: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rag/tree/ids`, {
-        method: "GET",
-        credentials: "include",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        set({ generatedTreeDocIds: data });
-      }
+      const data = await ragApi.getGeneratedTreeIds();
+      set({ generatedTreeDocIds: Array.isArray(data) ? data : [] });
     } catch (error) {
+      // Fail silently for background tree check
     }
   },
+
   generateOrFetchTree: async (documentId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rag/tree/${documentId}`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to generate or fetch knowledge tree");
-      }
-      const data = await response.json();
+      const data = await ragApi.generateOrFetchTree(documentId);
       const treeData = data.treeData || data;
       set({
         activeTreeData: treeData,
@@ -423,13 +546,26 @@ export const useGlobal = create((set, get) => ({
         set({ generatedTreeDocIds: [...currentIds, documentId] });
       }
     } catch (error) {
-      toast.error(error.message || "Failed to build tree");
+      toast.error(error.message || "Failed to build knowledge tree");
     }
   },
+
   closeTreeModal: () => {
     set({
       activeTreeData: null,
       isTreeModalOpen: false,
     });
+  },
+
+  // 12. Fetch Overview Statistics
+  fetchOverviewData: async () => {
+    try {
+      const res = await overviewApi.getStats();
+      if (res.success && res.data) {
+        set({ overviewData: res.data });
+      }
+    } catch (error) {
+      console.error("Failed to load overview data:", error.message);
+    }
   },
 }));

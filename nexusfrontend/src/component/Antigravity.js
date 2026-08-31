@@ -152,8 +152,8 @@ const Antigravity = (props) => {
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
       <Canvas
         camera={{ position: [0, 0, 40], fov: 35 }}
-        dpr={[1, 2]}
-        gl={{ alpha: true, antialias: true }}
+        dpr={1}
+        gl={{ alpha: true, antialias: false, powerPreference: "low-power" }}
         // Important: Ensure no internal events interfere
         style={{ pointerEvents: "none" }}
       >

@@ -23,6 +23,19 @@ const documentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    status: {
+      type: String,
+      enum: ["processing", "ready", "failed"],
+      default: "processing",
+    },
+    errorMessage: {
+      type: String,
+      default: null,
+    },
+    chunkCount: {
+      type: Number,
+      default: 0,
+    },
     uploadedAt: {
       type: Date,
       default: Date.now,

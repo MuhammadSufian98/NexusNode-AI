@@ -6,20 +6,32 @@ const conversationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
     workspace_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Workspace",
     },
-    documentIds: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Document",
-      },
-    ],
+    documentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Document",
+      required: true,
+      index: true,
+    },
+    title: {
+      type: String,
+      default: "New Chat Session",
+    },
+    lastMessage: {
+      type: String,
+      default: "",
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-const Conversation = mongoose.model("Conversation", conversationSchema);
+const Conversation =
+  mongoose.models.Conversation ||
+  mongoose.model("Conversation", conversationSchema);
+
 export default Conversation;

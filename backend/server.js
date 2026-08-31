@@ -1,3 +1,6 @@
+import dns from "node:dns";
+dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
+
 import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
@@ -6,14 +9,17 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import crypto from "crypto";
 
-
 // Route Imports
 import authRoutes from "./src/auth/auth.routes.js";
 import profileRoutes from "./src/profile/profile.routes.js";
 import ragRoutes from "./src/rag/rag.routes.js";
 import chatRoutes from "./src/chat/chat.routes.js";
 import treeRoutes from "./src/routes/tree.routes.js";
-import { notFoundHandler, errorHandler } from "./src/middleware/error.middleware.js";
+import overviewRoutes from "./src/routes/overview.routes.js";
+import {
+  notFoundHandler,
+  errorHandler,
+} from "./src/middleware/error.middleware.js";
 import { logger } from "./src/utils/logger.js";
 
 // Model Imports (for logging verification)
@@ -30,7 +36,8 @@ const MONGO_URI = process.env.MONGO_URI;
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || "NexusNode";
 const APP_ENV = (process.env.APP_ENV || "development").toLowerCase();
 
-const internalLog = (...args) => logger.info("internal", { message: args.join(" ") });
+const internalLog = (...args) =>
+  logger.info("internal", { message: args.join(" ") });
 
 // --- CORS STRATEGY ---
 const normalizeOrigin = (value = "") => value.replace(/\/+$/, "");
@@ -50,7 +57,10 @@ const isAllowedOrigin = (origin = "") => {
     return true;
   }
 
-  return /\.vercel\.app$/.test(cleanedOrigin) || /\.onrender\.com$/.test(cleanedOrigin);
+  return (
+    /\.vercel\.app$/.test(cleanedOrigin) ||
+    /\.onrender\.com$/.test(cleanedOrigin)
+  );
 };
 
 const corsOptions = {
@@ -106,7 +116,6 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
-
 // --- DATABASE CONNECTION ---
 const connectDB = async () => {
   try {
@@ -136,6 +145,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/rag", ragRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/rag/tree", treeRoutes);
+app.use("/api/overview", overviewRoutes);
 
 // Root Fallback
 app.get("/", (req, res) => {
