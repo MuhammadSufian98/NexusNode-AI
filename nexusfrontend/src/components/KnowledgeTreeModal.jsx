@@ -10,8 +10,7 @@ import {
   useNodesState,
   useEdgesState,
 } from "@xyflow/react";
-import { X, Sparkles } from "lucide-react";
-import { useGlobal } from "@/store/globalStore";
+import { useDocumentStore } from "@/store/useDocumentStore";
 import "@xyflow/react/dist/style.css";
 
 // 1. Move nodeTypes definition outside the component to completely fix the performance warnings and rendering lag.
@@ -95,7 +94,7 @@ const nodeTypes = {
 };
 
 export default function KnowledgeTreeModal() {
-  const { activeTreeData, isTreeModalOpen, closeTreeModal } = useGlobal();
+  const { activeTreeData, isTreeModalOpen, closeTreeModal } = useDocumentStore();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);

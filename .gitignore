@@ -1,22 +1,25 @@
-# Dependencies
+﻿# Dependencies
 **/node_modules/
 
 # Next.js builds
 frontend/.next/
 frontend/out/
+nexusfrontend/.next/
+nexusfrontend/out/
 
 # Environment variables
 .env*
 frontend/.env*
 backend/.env*
+nexusfrontend/.env*
 
 # OS files
 Thumbs.db
 .DS_Store
 
-README_AGENT.md
-
-CODENORM.md
+# Test and sample PDF documents
 lecture 13 spline.pdf
 test2.pdf
 waitegoos.pdf
+
+/docs/*

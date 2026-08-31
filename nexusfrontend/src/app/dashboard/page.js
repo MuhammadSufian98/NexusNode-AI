@@ -18,31 +18,30 @@ import {
 } from "lucide-react";
 
 import { Toaster } from "react-hot-toast";
-import { useGlobal } from "@/store/globalStore";
-import { useAuth } from "@/store/authStore";
+import { useUiStore, useDocumentStore, useOverviewStore, useAuth } from "@/store";
 
 import Sidebar from "@/component/dashboard/Sidebar";
-import NexusChatInterface from "@/component/dashboard/NexusChat";
-import SettingsView from "@/component/dashboard/Setting";
-import OverviewView from "@/component/dashboard/overView";
-import DocumentsView from "@/component/dashboard/document";
-import Profile from "@/component/dashboard/profile";
+import {
+  OverviewView,
+  DocumentsView,
+  ChatView,
+  SettingsView,
+  ProfileView,
+} from "@/components/dashboard";
 
 export default function Dashboard() {
   const router = useRouter();
+  const { activeSection, setActiveSection, sidebarOpen, setSidebarOpen } =
+    useUiStore();
   const {
-    activeSection,
-    setActiveSection,
-    sidebarOpen,
-    setSidebarOpen,
     isUploading,
     setIsUploading,
     documents,
     selectedDocument,
     setSelectedDocument,
-    overviewData,
     fetchDocuments,
-  } = useGlobal();
+  } = useDocumentStore();
+  const overviewData = useOverviewStore((state) => state.overviewData);
 
   const { user, logout, hydrateSession, isAuthenticated, authChecked } =
     useAuth();
@@ -260,23 +259,22 @@ export default function Dashboard() {
         </header>
 
         {/* MAIN BODY VIEW */}
-        <div className="flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden">
-          {activeSection === "dashboard" && <OverviewView />}
-          {activeSection === "documents" && (
-            <DocumentsView
-              isUploading={isUploading}
-              uploadProgress={uploadProgress}
-            />
-          )}
-          {activeSection === "profile" && <Profile />}
-          {activeSection === "chat" && (
-            <NexusChatInterface
-              selectedDocument={selectedDocument}
-              setSelectedDocument={setSelectedDocument}
-              documents={documents}
-            />
-          )}
-          {activeSection === "settings" && <SettingsView />}
+        <div className="flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden relative">
+          <AnimatePresence mode="wait">
+            {(activeSection === "dashboard" || activeSection === "overview") && (
+              <OverviewView key="overview" />
+            )}
+            {activeSection === "documents" && (
+              <DocumentsView
+                key="documents"
+                isUploading={isUploading}
+                uploadProgress={uploadProgress}
+              />
+            )}
+            {activeSection === "profile" && <ProfileView key="profile" />}
+            {activeSection === "chat" && <ChatView key="chat" />}
+            {activeSection === "settings" && <SettingsView key="settings" />}
+          </AnimatePresence>
         </div>
       </main>
 
