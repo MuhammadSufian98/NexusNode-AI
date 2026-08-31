@@ -16,6 +16,7 @@ import ragRoutes from "./src/rag/rag.routes.js";
 import chatRoutes from "./src/chat/chat.routes.js";
 import treeRoutes from "./src/routes/tree.routes.js";
 import overviewRoutes from "./src/routes/overview.routes.js";
+import settingsRoutes from "./src/routes/routes/settings.routes.js";
 import {
   notFoundHandler,
   errorHandler,
@@ -146,6 +147,7 @@ app.use("/api/rag", ragRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/rag/tree", treeRoutes);
 app.use("/api/overview", overviewRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // Root Fallback
 app.get("/", (req, res) => {

@@ -98,3 +98,30 @@ export const overviewApi = {
     return res.data;
   },
 };
+
+export const settingsApi = {
+  getConfig: async () => {
+    const res = await api.get("/api/settings/config");
+    return res.data;
+  },
+  saveNeuralKey: async ({ provider, apiKey, useCustomKeys }) => {
+    const res = await api.put("/api/settings/neural-keys", {
+      provider,
+      apiKey,
+      useCustomKeys,
+    });
+    return res.data;
+  },
+  clearChatLogs: async () => {
+    const res = await api.delete("/api/settings/vault/chat-history");
+    return res.data;
+  },
+  reindexAssets: async () => {
+    const res = await api.post("/api/settings/vault/reindex");
+    return res.data;
+  },
+  purgeVault: async () => {
+    const res = await api.delete("/api/settings/vault/purge-all");
+    return res.data;
+  },
+};

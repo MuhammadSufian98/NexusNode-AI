@@ -1,10 +1,14 @@
 import mongoose from "mongoose";
 import Conversation from "../models/conversation.model.js";
+import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import Message from "../models/message.model.js";
+import User from "../auth/auth.model.js";
 import Document from "../rag/documents.model.js";
 import DocumentChunk from "../rag/documentChunks.model.js";
 import { getEmbedding } from "../rag/rag.controller.js";
 import { scoreAndSortChunks } from "../utils/vectorMath.js";
+import { decryptSecret } from "../utils/cryptoVault.js";
 import groq from "../utils/groq.js";
 
 /**
@@ -15,8 +19,8 @@ export const retrieveRelevantChunks = async ({
   userId,
   documentId,
   queryVector,
-  limit = 10,           // Increased from 5 to 10 for deep textbook context
-  minSimilarity = 0.45, // Lowered from 0.65 to 0.45 to prevent dropping valid hits
+  limit = 10,
+  minSimilarity = 0.45,
 }) => {
   let vectorResults = [];
 
@@ -29,7 +33,7 @@ export const retrieveRelevantChunks = async ({
             index: "vector_index",
             path: "embedding",
             queryVector: queryVector,
-            numCandidates: 150, // Increased candidate pool
+            numCandidates: 150,
             limit: limit * 2,
             filter: {
               userId: new mongoose.Types.ObjectId(userId),
@@ -77,28 +81,184 @@ export const retrieveRelevantChunks = async ({
 
   let finalResults = [...filteredVectorResults];
 
-  // 2. Lexical Keyword Fallback (Triggers if vector hits are fewer than 5)
+  // 2. Lexical Keyword Fallback (if vector hits are fewer than 5)
   if (finalResults.length < 5) {
     const stopwords = new Set([
-      "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
-      "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being",
-      "below", "between", "both", "but", "by", "can", "can't", "cannot", "could",
-      "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down",
-      "during", "each", "few", "for", "from", "further", "had", "hadn't", "has",
-      "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her",
-      "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's",
-      "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it",
-      "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my",
-      "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other",
-      "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't",
-      "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such",
-      "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then",
-      "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've",
-      "this", "those", "through", "to", "too", "under", "until", "up", "very", "was",
-      "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what",
-      "what's", "when", "when's", "where", "where's", "which", "while", "who",
-      "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you",
-      "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves",
+      "a",
+      "about",
+      "above",
+      "after",
+      "again",
+      "against",
+      "all",
+      "am",
+      "an",
+      "and",
+      "any",
+      "are",
+      "aren't",
+      "as",
+      "at",
+      "be",
+      "because",
+      "been",
+      "before",
+      "being",
+      "below",
+      "between",
+      "both",
+      "but",
+      "by",
+      "can",
+      "can't",
+      "cannot",
+      "could",
+      "couldn't",
+      "did",
+      "didn't",
+      "do",
+      "does",
+      "doesn't",
+      "doing",
+      "don't",
+      "down",
+      "during",
+      "each",
+      "few",
+      "for",
+      "from",
+      "further",
+      "had",
+      "hadn't",
+      "has",
+      "hasn't",
+      "have",
+      "haven't",
+      "having",
+      "he",
+      "he'd",
+      "he'll",
+      "he's",
+      "her",
+      "here",
+      "here's",
+      "hers",
+      "herself",
+      "him",
+      "himself",
+      "his",
+      "how",
+      "how's",
+      "i",
+      "i'd",
+      "i'll",
+      "i'm",
+      "i've",
+      "if",
+      "in",
+      "into",
+      "is",
+      "isn't",
+      "it",
+      "it's",
+      "its",
+      "itself",
+      "let's",
+      "me",
+      "more",
+      "most",
+      "mustn't",
+      "my",
+      "myself",
+      "no",
+      "nor",
+      "not",
+      "of",
+      "off",
+      "on",
+      "once",
+      "only",
+      "or",
+      "other",
+      "ought",
+      "our",
+      "ours",
+      "ourselves",
+      "out",
+      "over",
+      "own",
+      "same",
+      "shan't",
+      "she",
+      "she'd",
+      "she'll",
+      "she's",
+      "should",
+      "shouldn't",
+      "so",
+      "some",
+      "such",
+      "than",
+      "that",
+      "that's",
+      "the",
+      "their",
+      "theirs",
+      "them",
+      "themselves",
+      "then",
+      "there",
+      "there's",
+      "these",
+      "they",
+      "they'd",
+      "they'll",
+      "they're",
+      "they've",
+      "this",
+      "those",
+      "through",
+      "to",
+      "too",
+      "under",
+      "until",
+      "up",
+      "very",
+      "was",
+      "wasn't",
+      "we",
+      "we'd",
+      "we'll",
+      "we're",
+      "we've",
+      "were",
+      "weren't",
+      "what",
+      "what's",
+      "when",
+      "when's",
+      "where",
+      "where's",
+      "which",
+      "while",
+      "who",
+      "who's",
+      "whom",
+      "why",
+      "why's",
+      "with",
+      "won't",
+      "would",
+      "wouldn't",
+      "you",
+      "you'd",
+      "you'll",
+      "you're",
+      "you've",
+      "your",
+      "yours",
+      "yourself",
+      "yourselves",
     ]);
 
     const words = queryText.toLowerCase().match(/\w+/g) || [];
@@ -124,7 +284,7 @@ export const retrieveRelevantChunks = async ({
         .limit(limit)
         .lean();
 
-      // Deduplicate results
+      // Deduplication
       const seenIds = new Set(finalResults.map((r) => r._id.toString()));
       for (const chunk of lexicalResults) {
         const idStr = chunk._id.toString();
@@ -170,6 +330,7 @@ export const handleChatMessage = async (req, res) => {
     let resolvedDocId = documentId || workspace_id;
     if (resolvedDocId === "undefined") resolvedDocId = undefined;
 
+    // 1. Resolve conversation if provided
     if (targetConvId && targetConvId !== "undefined") {
       if (!mongoose.Types.ObjectId.isValid(targetConvId)) {
         return res
@@ -189,6 +350,7 @@ export const handleChatMessage = async (req, res) => {
       resolvedDocId = conversation.documentId;
     }
 
+    // 2. Validate Document ID
     if (
       !resolvedDocId ||
       resolvedDocId === "undefined" ||
@@ -199,6 +361,7 @@ export const handleChatMessage = async (req, res) => {
         .json({ success: false, error: "A valid documentId is required." });
     }
 
+    // 3. Verify parent document readiness
     const parentDoc = await Document.findOne({
       _id: resolvedDocId,
       userId: req.user._id,
@@ -216,6 +379,7 @@ export const handleChatMessage = async (req, res) => {
       });
     }
 
+    // 4. Auto-create conversation if none existed
     if (!conversation) {
       conversation = await Conversation.create({
         userId: req.user._id,
@@ -236,7 +400,7 @@ export const handleChatMessage = async (req, res) => {
       userId: req.user._id,
       documentId: resolvedDocId,
       queryVector,
-      limit: 10,          // Delivering 10 context blocks to the model
+      limit: 10,
       minSimilarity: 0.45,
     });
 
@@ -267,7 +431,7 @@ CRITICAL RULES:
    - Verify discount percentages against the exact arrival/time window conditions defined in the source before applying them.
 4. Structure: Present information clearly using clean Markdown formatting (bold key figures, bullet points, and concise breakdown tables where helpful).`;
 
-    // 6. Build History
+    // 6. Build Message History
     const previousMessages = await Message.find({
       conversationId: conversation._id,
     })
@@ -292,43 +456,121 @@ CRITICAL RULES:
       snippet: (chunk.text || "").slice(0, 200),
     }));
 
-    // 7. Active Validated Groq Production Models
-    const activeModels = [
-      "openai/gpt-oss-20b", // Ultra-fast, 128k context, high rate limit
-      "openai/gpt-oss-120b", // 120B reasoning model, high quality
-      "groq/compound", // System model with 131k context
-      "groq/compound-mini",
-    ];
+    // 7. Check for User Custom BYOK Configuration
+    const userRecord = await User.findById(req.user._id).select(
+      "customLlmConfig",
+    );
+    const useCustomKeys = userRecord?.customLlmConfig?.useCustomKeys;
+    const provider = userRecord?.customLlmConfig?.preferredProvider;
 
-    let chatCompletion;
-    let lastError = null;
+    let assistantResponseText = "";
+    let executionSuccess = false;
 
-    for (const modelName of activeModels) {
-      try {
-        chatCompletion = await groq.chat.completions.create({
-          messages: groqMessages,
-          model: modelName,
-          temperature: 0.2,
-          max_tokens: 1500,
-        });
-        if (chatCompletion?.choices?.[0]?.message?.content) {
-          break;
+    // A. Custom OpenAI Route
+    if (
+      useCustomKeys &&
+      provider === "openai" &&
+      userRecord?.customLlmConfig?.openaiKey
+    ) {
+      const decryptedOpenAIKey = decryptSecret(
+        userRecord.customLlmConfig.openaiKey,
+      );
+      if (decryptedOpenAIKey) {
+        try {
+          console.log("[Inference] Routing through Custom User OpenAI Key");
+          const customOpenAI = new OpenAI({ apiKey: decryptedOpenAIKey });
+          const completion = await customOpenAI.chat.completions.create({
+            messages: groqMessages,
+            model: "gpt-4o",
+            temperature: 0.2,
+          });
+          assistantResponseText =
+            completion.choices[0]?.message?.content || "No response generated.";
+          executionSuccess = true;
+        } catch (openAiError) {
+          console.warn(
+            `[Inference] Custom OpenAI execution failed: ${openAiError.message}. Falling back to default pipeline.`,
+          );
         }
-      } catch (err) {
-        console.warn(`[LLM Call] Model ${modelName} failed: ${err.message}`);
-        lastError = err;
       }
     }
 
-    if (!chatCompletion?.choices?.[0]?.message?.content) {
-      throw new Error(
-        lastError?.message || "All fallback LLM models failed to respond.",
+    // B. Custom Gemini Route
+    if (
+      !executionSuccess &&
+      useCustomKeys &&
+      provider === "gemini" &&
+      userRecord?.customLlmConfig?.geminiKey
+    ) {
+      const decryptedGeminiKey = decryptSecret(
+        userRecord.customLlmConfig.geminiKey,
       );
+      if (decryptedGeminiKey) {
+        try {
+          console.log("[Inference] Routing through Custom User Gemini Key");
+          const genAI = new GoogleGenerativeAI(decryptedGeminiKey);
+          const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-flash",
+            systemInstruction: systemPrompt,
+          });
+
+          // Reconstruct multi-turn chat history for Google Generative AI
+          const geminiHistory = previousMessages.map((msg) => ({
+            role: msg.role === "assistant" ? "model" : "user",
+            parts: [{ text: msg.content }],
+          }));
+
+          const chat = model.startChat({ history: geminiHistory });
+          const result = await chat.sendMessage(queryText);
+          assistantResponseText = result.response.text();
+          executionSuccess = true;
+        } catch (geminiError) {
+          console.warn(
+            `[Inference] Custom Gemini execution failed: ${geminiError.message}. Falling back to default pipeline.`,
+          );
+        }
+      }
     }
 
-    const assistantResponseText = chatCompletion.choices[0].message.content;
+    // C. Default Groq Fallback Pipeline
+    if (!executionSuccess) {
+      const activeModels = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "llama3-70b-8192",
+        "mixtral-8x7b-32768",
+      ];
 
-    // 8. Persist Messages & Update Session
+      let lastError = null;
+
+      for (const modelName of activeModels) {
+        try {
+          const chatCompletion = await groq.chat.completions.create({
+            messages: groqMessages,
+            model: modelName,
+            temperature: 0.2,
+            max_tokens: 1500,
+          });
+
+          if (chatCompletion?.choices?.[0]?.message?.content) {
+            assistantResponseText = chatCompletion.choices[0].message.content;
+            executionSuccess = true;
+            break;
+          }
+        } catch (err) {
+          console.warn(`[LLM Call] Model ${modelName} failed: ${err.message}`);
+          lastError = err;
+        }
+      }
+
+      if (!executionSuccess) {
+        throw new Error(
+          lastError?.message || "All fallback LLM models failed to respond.",
+        );
+      }
+    }
+
+    // 8. Persist Messages & Update Session Timestamp
     const userMsg = await Message.create({
       conversationId: conversation._id,
       userId: req.user._id,

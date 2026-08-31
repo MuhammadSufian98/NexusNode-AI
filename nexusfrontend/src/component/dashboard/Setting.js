@@ -1,333 +1,512 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-hot-toast";
 import {
   Settings,
   Cpu,
-  ShieldCheck,
-  Palette,
-  HardDrive,
-  Bell,
+  Database,
+  Globe,
+  Key,
   Trash2,
   RefreshCw,
-  Zap,
-  Globe,
-  Database,
-  Key,
-  Languages,
-  Monitor,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon,
+  Loader2,
+  Check,
+  ShieldCheck,
   CheckCircle2,
   AlertTriangle,
-  Fingerprint,
-  Activity,
-  Terminal,
-  ChevronRight,
+  Lock,
+  Sparkles,
 } from "lucide-react";
+import { settingsApi } from "@/utils/apiServices";
+import { useGlobal } from "@/store/globalStore";
 
 export default function SettingsView() {
+  const fetchOverviewData = useGlobal((state) => state.fetchOverviewData);
+  const fetchDocuments = useGlobal((state) => state.fetchDocuments);
+
   const [activeTab, setActiveTab] = useState("neural");
   const [selectedProvider, setSelectedProvider] = useState("openai");
   const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [theme, setTheme] = useState("light");
+  const [language, setLanguage] = useState("en");
+  const [useCustomKeys, setUseCustomKeys] = useState(false);
+
+  const [savedConfig, setSavedConfig] = useState({
+    openai: { configured: false, maskedKey: "" },
+    gemini: { configured: false, maskedKey: "" },
+  });
+
+  // Action status indicators
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [wiping, setWiping] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [indexing, setIndexing] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
 
   const tabs = [
-    { id: "general", label: "General", icon: Globe },
-    { id: "neural", label: "Neural", icon: Cpu },
-    { id: "vault", label: "Vault", icon: Database },
+    { id: "neural", label: "Neural Engine", icon: Cpu },
+    { id: "vault", label: "Vault Security", icon: Database },
+    { id: "general", label: "Preferences", icon: Globe },
   ];
 
   const tabVariants = {
-    initial: { opacity: 0, x: 10 },
-    animate: { opacity: 1, x: 0, transition: { duration: 0.3 } },
-    exit: { opacity: 0, x: -10, transition: { duration: 0.2 } },
+    initial: { opacity: 0, y: 6 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.22 } },
+    exit: { opacity: 0, y: -6, transition: { duration: 0.15 } },
+  };
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoadingConfig(true);
+      const res = await settingsApi.getConfig();
+      if (res.success && res.data) {
+        setSelectedProvider(res.data.provider || "openai");
+        setUseCustomKeys(res.data.useCustomKeys || false);
+        setSavedConfig({
+          openai: res.data.openai,
+          gemini: res.data.gemini,
+        });
+        if (res.data.general) {
+          setTheme(res.data.general.theme || "light");
+          setLanguage(res.data.general.language || "en");
+        }
+      }
+    } catch (err) {
+      toast.error("Failed to load user settings.");
+    } finally {
+      setLoadingConfig(false);
+    }
+  };
+
+  const handleSaveKey = async () => {
+    if (!apiKey.trim()) {
+      toast.error("Please enter a valid API key string.");
+      return;
+    }
+    try {
+      setSavingKey(true);
+      const res = await settingsApi.saveNeuralKey({
+        provider: selectedProvider,
+        apiKey: apiKey.trim(),
+        useCustomKeys: true,
+      });
+
+      if (res.success) {
+        toast.success(res.message);
+        setSavedConfig((prev) => ({
+          ...prev,
+          [selectedProvider]: {
+            configured: true,
+            maskedKey: res.maskedKey,
+          },
+        }));
+        setApiKey("");
+        setUseCustomKeys(true);
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to encrypt and store key.");
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  const handleWipeVault = async () => {
+    if (
+      !confirm(
+        "Are you sure? This will delete all your uploaded documents, chunks, and trees permanently.",
+      )
+    )
+      return;
+    try {
+      setWiping(true);
+      const res = await settingsApi.purgeVault();
+      toast.success(res.message);
+      await fetchDocuments();
+      await fetchOverviewData();
+    } catch (err) {
+      toast.error(err.message || "Wipe failed.");
+    } finally {
+      setWiping(false);
+    }
+  };
+
+  const handleResetHistory = async () => {
+    try {
+      setResetting(true);
+      const res = await settingsApi.clearChatLogs();
+      toast.success(res.message);
+      await fetchOverviewData();
+    } catch (err) {
+      toast.error(err.message || "Failed to clear logs.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const handleReindex = async () => {
+    try {
+      setIndexing(true);
+      const res = await settingsApi.reindexAssets();
+      toast.success(res.message);
+      await fetchOverviewData();
+    } catch (err) {
+      toast.error(err.message || "Reindexing failed.");
+    } finally {
+      setIndexing(false);
+    }
   };
 
   return (
-    <div className="grid lg:grid-cols-12 gap-4 md:gap-6 h-full min-h-0 overflow-y-auto lg:overflow-hidden pb-2">
-      {/* --- LEFT STAGE: MAIN CONFIG (8 Cols) --- */}
-      <div className="lg:col-span-8 flex flex-col bg-white border border-slate-200 rounded-[2.5rem] shadow-xl shadow-slate-200/40 overflow-hidden relative min-h-0">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 md:p-5 border-b border-slate-50 shrink-0 bg-white z-10">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-rose-50 rounded-xl">
-              <Settings
-                className="text-rose-600 animate-[spin_8s_linear_infinite]"
-                size={18}
-              />
-            </div>
-            <div>
-              <h2 className="font-black text-xs tracking-widest uppercase text-slate-900">
-                System Preferences
-              </h2>
-              <p className="text-[9px] font-bold text-rose-500 uppercase tracking-tighter">
-                Node Version 4.2.0-Stable
-              </p>
-            </div>
+    <div className="w-full h-full min-h-0 flex flex-col bg-white/60 backdrop-blur-2xl border border-white/80 rounded-3xl overflow-hidden relative select-none">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 md:px-6 py-3.5 border-b border-slate-100/90 shrink-0 bg-white/40">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500/10 via-orange-500/10 to-amber-500/10 border border-rose-200/60 flex items-center justify-center text-rose-600 shrink-0">
+            <Settings size={16} />
           </div>
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              System Settings & Security
+            </h2>
+            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-tight">
+              Encryption • Custom BYOK • Vault Health
+            </p>
+          </div>
+        </div>
 
-          {/* Tab Slider Integrated into Header */}
-          <div className="bg-slate-100 p-1 rounded-xl grid grid-cols-3 w-full md:w-auto md:min-w-70">
-            {tabs.map((tab) => (
+        {/* TAB NAVIGATION CHIPS */}
+        <div className="bg-slate-100/70 backdrop-blur-md p-1 rounded-xl flex items-center gap-1 shrink-0">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative z-10 flex items-center justify-center gap-1 md:gap-2 px-2 md:px-4 py-2 md:py-1.5 text-[9px] font-black uppercase tracking-[0.08em] md:tracking-widest transition-colors ${
-                  activeTab === tab.id ? "text-rose-600" : "text-slate-500"
+                className={`relative px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  isActive
+                    ? "text-slate-900"
+                    : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                <tab.icon size={12} />
-                {tab.label}
-                {activeTab === tab.id && (
+                {isActive && (
                   <motion.div
-                    layoutId="settingTab"
-                    className="absolute inset-0 bg-white rounded-lg shadow-sm z-[-1]"
+                    layoutId="activeSettingsTab"
+                    className="absolute inset-0 bg-white rounded-lg shadow-xs -z-10"
+                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
                   />
                 )}
+                <Icon size={12} className={isActive ? "text-rose-600" : ""} />
+                <span>{tab.label}</span>
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content Area - Internal Scroll Only */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/20">
-          <AnimatePresence mode="wait">
-            {activeTab === "neural" && (
-              <motion.div key="neural" {...tabVariants} className="space-y-8">
-                {/* Inference Provider */}
-                <div className="space-y-4">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">
-                    Primary Inference Stage
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {["openai", "gemini"].map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setSelectedProvider(p)}
-                        className={`p-6 rounded-4xl border-2 transition-all flex items-center justify-between ${selectedProvider === p ? "border-rose-500 bg-white shadow-lg shadow-rose-100" : "border-slate-100 bg-white/50 hover:border-slate-200"}`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={
-                              p === "openai"
-                                ? "https://cdn.worldvectorlogo.com/logos/openai-2.svg"
-                                : "https://www.gstatic.com/lamda/images/favicon_v1_150160d13fefabc0696.png"
-                            }
-                            className="h-6 w-auto"
-                            alt=""
-                          />
-                          <span className="text-xs font-black uppercase tracking-widest">
-                            {p}
-                          </span>
-                        </div>
-                        {selectedProvider === p && (
-                          <CheckCircle2 size={18} className="text-rose-600" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* API Key Dock */}
-                <div className="space-y-4">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">
-                    Security Credentials
-                  </h3>
-                  <div className="flex flex-col md:flex-row gap-2 p-2 bg-white border border-slate-200 rounded-3xl md:items-center shadow-sm">
-                    <div className="p-3 bg-slate-50 rounded-xl">
-                      <Key size={16} className="text-slate-400" />
-                    </div>
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder={`Enter Secret ${selectedProvider.toUpperCase()} Key`}
-                      className="flex-1 bg-transparent px-2 text-xs font-bold text-slate-700 outline-none"
-                    />
-                    <div className="flex gap-1 w-full md:w-auto">
-                      <button
-                        onClick={() => setApiKey("")}
-                        className="flex-1 md:flex-none px-5 py-2.5 bg-slate-50 text-slate-500 text-[10px] font-black uppercase rounded-xl hover:bg-slate-100 transition-all"
-                      >
-                        Clear
-                      </button>
-                      <button className="flex-1 md:flex-none px-5 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-rose-600 transition-all">
-                        Activate
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === "vault" && (
-              <motion.div key="vault" {...tabVariants} className="space-y-6">
-                <div className="bg-rose-50/50 border border-rose-100 p-5 md:p-6 rounded-4xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <h4 className="text-xs font-black text-rose-700 uppercase tracking-widest">
-                      Total Data Purge
-                    </h4>
-                    <p className="text-[10px] font-bold text-rose-400 uppercase mt-1">
-                      Permanently remove all vector embeddings
-                    </p>
-                  </div>
-                  <button className="px-6 py-3 bg-rose-600 text-white text-[10px] font-black uppercase rounded-xl shadow-lg shadow-rose-200">
-                    Execute Wipe
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-6 bg-white border border-slate-100 rounded-4xl space-y-2">
-                    <Trash2 size={20} className="text-slate-400" />
-                    <p className="text-[10px] font-black text-slate-800 uppercase">
-                      Clear Chat Logs
-                    </p>
-                    <button className="text-[9px] font-black text-rose-600 uppercase tracking-tighter">
-                      Reset History
-                    </button>
-                  </div>
-                  <div className="p-6 bg-white border border-slate-100 rounded-4xl space-y-2">
-                    <RefreshCw size={20} className="text-slate-400" />
-                    <p className="text-[10px] font-black text-slate-800 uppercase">
-                      Re-index Assets
-                    </p>
-                    <button className="text-[9px] font-black text-rose-600 uppercase tracking-tighter">
-                      Start Engine
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === "general" && (
-              <motion.div
-                key="general"
-                {...tabVariants}
-                className="grid grid-cols-1 md:grid-cols-2 gap-6"
-              >
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">
-                    Localization
-                  </label>
-                  <select className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-xs font-black text-slate-700 focus:ring-4 focus:ring-rose-500/10 outline-none appearance-none cursor-pointer">
-                    <option>English (United States)</option>
-                    <option>Urdu (Pakistan)</option>
-                  </select>
-                </div>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">
-                    Appearance
-                  </label>
-                  <div className="flex gap-2">
-                    <button className="flex-1 p-4 bg-slate-900 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest">
-                      Night
-                    </button>
-                    <button className="flex-1 p-4 bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl text-[9px] font-black uppercase tracking-widest">
-                      Day
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Footer Action Dock */}
-        <div className="p-5 border-t border-slate-50 bg-white shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Fingerprint size={16} className="text-rose-600" />
-              <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
-                Identity Verified Stage
-              </span>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* --- RIGHT: DIAGNOSTICS & STATUS (4 Cols) --- */}
-      <div className="lg:col-span-4 flex flex-col gap-5 overflow-hidden min-h-0">
-        {/* Resource Allocation Card */}
-        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-6 flex flex-col shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-slate-50 rounded-lg">
-              <Activity size={16} className="text-rose-600" />
-            </div>
-            <h3 className="font-black text-xs uppercase tracking-widest text-slate-800">
-              Live Resources
-            </h3>
-          </div>
+      {/* CONTENT REGION */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar bg-transparent">
+        <AnimatePresence mode="wait">
+          {/* 1. NEURAL ENGINE TAB */}
+          {activeTab === "neural" && (
+            <motion.div
+              key="neural"
+              {...tabVariants}
+              className="space-y-5 max-w-4xl"
+            >
+              {/* Provider Selection */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Cpu size={14} className="text-rose-600" /> Model Provider
+                  </h3>
+                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center gap-1">
+                    <ShieldCheck size={10} /> AES-256 Vault Encrypted
+                  </span>
+                </div>
 
-          <div className="space-y-4">
-            <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl text-center group hover:bg-rose-50 transition-colors">
-              <p className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-rose-600 transition-colors">
-                1.2GB
-              </p>
-              <p className="text-[9px] font-black text-slate-400 uppercase mt-1 tracking-widest">
-                Vault Capacity
-              </p>
-            </div>
-            <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl text-center group hover:bg-rose-50 transition-colors">
-              <p className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-rose-600 transition-colors">
-                842
-              </p>
-              <p className="text-[9px] font-black text-slate-400 uppercase mt-1 tracking-widest">
-                Neural Chunks
-              </p>
-            </div>
-          </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    {
+                      id: "openai",
+                      name: "OpenAI GPT-4o",
+                      sub: "Text & Multi-Modal",
+                      icon: "https://cdn.worldvectorlogo.com/logos/openai-2.svg",
+                    },
+                    {
+                      id: "gemini",
+                      name: "Google Gemini",
+                      sub: "Flash & Pro Context",
+                      icon: "https://www.gstatic.com/lamda/images/favicon_v1_150160d13fefabc0696.png",
+                    },
+                  ].map((p) => {
+                    const isSelected = selectedProvider === p.id;
+                    const isConfigured = savedConfig[p.id]?.configured;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelectedProvider(p.id)}
+                        className={`p-3.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-white/90 border-rose-400/80 shadow-xs"
+                            : "bg-white/40 hover:bg-white/70 border-slate-200/70"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center p-1.5 shrink-0">
+                            <img
+                              src={p.icon}
+                              alt=""
+                              className="h-4 w-auto object-contain"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate">
+                              {p.name}
+                            </p>
+                            <p className="text-[9px] font-medium text-slate-400 uppercase">
+                              {p.sub}
+                            </p>
+                          </div>
+                        </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[9px] font-black text-slate-400 uppercase">
-                Integrity Score
-              </span>
-              <span className="text-[9px] font-black text-emerald-500 uppercase">
-                98%
-              </span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: "98%" }}
-                className="h-full bg-emerald-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Engine Metadata */}
-        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-6 shadow-sm relative overflow-hidden group flex-1">
-          <div className="absolute -top-10 -right-10 w-32 h-32 bg-rose-100/40 blur-2xl rounded-full pointer-events-none" />
-
-          <h3 className="relative z-10 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-            <Zap size={14} className="text-rose-500" /> Meta Intelligence
-          </h3>
-
-          <div className="relative z-10 space-y-2">
-            {[
-              { label: "Latency", val: "240ms" },
-              { label: "Token Rate", val: "8k/min" },
-              { label: "Version", val: "4.2.0-S" },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="flex justify-between items-center p-3 bg-slate-50 rounded-xl"
-              >
-                <span className="text-[9px] font-black text-slate-400 uppercase">
-                  {stat.label}
-                </span>
-                <span className="text-[10px] font-black text-slate-800 uppercase">
-                  {stat.val}
-                </span>
+                        {isConfigured ? (
+                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Check size={10} /> Active
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                            Default
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            ))}
-          </div>
 
-          <div className="mt-6 flex justify-center">
-            <button className="text-[9px] font-black text-rose-600 uppercase tracking-widest border-b border-rose-200 pb-1 flex items-center gap-1">
-              View System Logs <ChevronRight size={10} />
-            </button>
-          </div>
-        </div>
+              {/* API Key Input Container */}
+              <div className="bg-white/50 backdrop-blur-xl border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                    <Key size={12} className="text-rose-600" />
+                    Configure Secret Key (
+                    {selectedProvider === "openai" ? "OpenAI" : "Gemini"})
+                  </label>
+                  {savedConfig[selectedProvider]?.configured && (
+                    <span className="text-[9px] font-mono text-slate-400">
+                      Current: {savedConfig[selectedProvider].maskedKey}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1 flex items-center bg-white/90 border border-slate-200 rounded-xl px-3 focus-within:border-rose-400 transition-colors">
+                    <Lock size={13} className="text-slate-400 mr-2 shrink-0" />
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder={
+                        savedConfig[selectedProvider]?.configured
+                          ? "Enter new key to update current..."
+                          : `sk-... (${selectedProvider.toUpperCase()} Key)`
+                      }
+                      className="w-full py-2 text-xs font-medium text-slate-800 outline-none bg-transparent placeholder:text-slate-400"
+                    />
+                    {apiKey && (
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                      >
+                        {showApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleSaveKey}
+                    disabled={savingKey || !apiKey.trim()}
+                    className="px-4 py-2 bg-slate-900 hover:bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    {savingKey ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <ShieldCheck size={13} />
+                    )}
+                    <span>Encrypt & Store</span>
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                  Keys are secured in MongoDB using AES-256-GCM hardware
+                  encryption and loaded strictly into volatile memory during
+                  inference.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 2. VAULT TAB */}
+          {activeTab === "vault" && (
+            <motion.div
+              key="vault"
+              {...tabVariants}
+              className="space-y-4 max-w-4xl"
+            >
+              {/* Danger Zone Purge */}
+              <div className="bg-rose-50/50 backdrop-blur-md border border-rose-200/80 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-rose-100/70 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <AlertTriangle size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-rose-900">
+                      Total Vault Purge
+                    </h4>
+                    <p className="text-[10px] text-rose-600/90 font-medium mt-0.5">
+                      Permanently wipes all uploaded PDF files, vector chunks,
+                      trees, and chat sessions.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleWipeVault}
+                  disabled={wiping}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  {wiping ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={13} />
+                  )}
+                  <span>Execute Wipe</span>
+                </button>
+              </div>
+
+              {/* Maintenance Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-4 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl space-y-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                    <Trash2 size={15} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                      Clear Chat Logs
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                      Clears all message history while preserving documents and
+                      embeddings.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleResetHistory}
+                    disabled={resetting}
+                    className="text-xs font-bold text-rose-600 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {resetting ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      "Purge Chat History"
+                    )}
+                  </button>
+                </div>
+
+                <div className="p-4 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl space-y-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                    <RefreshCw size={15} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                      Re-index Vectors
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                      Refreshes vector embeddings across all documents in your
+                      repository.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleReindex}
+                    disabled={indexing}
+                    className="text-xs font-bold text-slate-800 hover:text-rose-600 flex items-center gap-1 cursor-pointer"
+                  >
+                    {indexing ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      "Run Re-indexer"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 3. PREFERENCES TAB */}
+          {activeTab === "general" && (
+            <motion.div
+              key="general"
+              {...tabVariants}
+              className="space-y-4 max-w-4xl"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    System Language
+                  </label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                  >
+                    <option value="en">English (US)</option>
+                    <option value="ur">Urdu (Pakistan)</option>
+                  </select>
+                </div>
+
+                <div className="p-4 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Workspace Theme
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setTheme("light")}
+                      className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer ${
+                        theme === "light"
+                          ? "bg-white border-rose-400 text-rose-600 shadow-xs"
+                          : "border-slate-200 text-slate-500"
+                      }`}
+                    >
+                      <Sun size={13} /> Light
+                    </button>
+                    <button
+                      onClick={() => setTheme("dark")}
+                      className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer ${
+                        theme === "dark"
+                          ? "bg-slate-900 border-slate-900 text-white shadow-xs"
+                          : "border-slate-200 text-slate-500"
+                      }`}
+                    >
+                      <Moon size={13} /> Dark
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

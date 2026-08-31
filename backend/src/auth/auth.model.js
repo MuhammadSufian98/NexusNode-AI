@@ -43,6 +43,36 @@ const userSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    customLlmConfig: {
+      preferredProvider: {
+        type: String,
+        enum: ["openai", "gemini"],
+        default: "openai",
+      },
+      openaiKey: {
+        type: String,
+        default: null,
+      },
+      geminiKey: {
+        type: String,
+        default: null,
+      },
+      useCustomKeys: {
+        type: Boolean,
+        default: false,
+      },
+    },
+    generalPreferences: {
+      theme: {
+        type: String,
+        enum: ["light", "dark"],
+        default: "light",
+      },
+      language: {
+        type: String,
+        default: "en",
+      },
+    },
   },
   { timestamps: true },
 );
