@@ -18,12 +18,25 @@ export default function LayoutWrapper({ children }) {
     pathname.startsWith("/dashboard") || pathname.startsWith("/auth/login");
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
+      {/* 1. Header (Excluded on Dashboard and Login screens) */}
       {!isDashboard && <Header />}
 
-      <main className="grow relative">{children}</main>
+      {/* 
+        2. Main Content Container:
+        - pt-20 sm:pt-24 pushes the entire page down cleanly below the fixed header 
+        - isDashboard resets to pt-0 so custom sidebar/workspace layouts can use 100vh directly
+      */}
+      <main
+        className={`grow relative w-full ${
+          !isDashboard ? "pt-20 sm:pt-24" : "pt-0"
+        }`}
+      >
+        {children}
+      </main>
 
+      {/* 3. Footer */}
       {!isDashboard && <Footer />}
-    </>
+    </div>
   );
 }

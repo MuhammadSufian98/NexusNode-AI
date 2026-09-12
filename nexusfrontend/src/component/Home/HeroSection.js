@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useId } from "react";
+import React, { useState, useEffect, useId, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -13,18 +13,123 @@ import {
   FileText,
   BookOpen,
   GraduationCap,
+  Layers,
+  BookmarkCheck,
 } from "lucide-react";
+import Marquee from "react-fast-marquee";
+
+const TECH_PARTNERS = [
+  {
+    name: "Google Gemini",
+    role: "Multimodal Core",
+    hoverBorder: "hover:border-[#1A73E8]/40",
+    hoverBg: "hover:bg-[#1A73E8]/5",
+    hoverShadow: "hover:shadow-[0_10px_24px_-4px_rgba(26,115,232,0.18)]",
+    activeText: "group-hover:text-[#1A73E8]",
+    logoSrc: "/Home/HeroSection/gemini.png",
+  },
+  {
+    name: "OpenAI",
+    role: "Embedding Model",
+    hoverBorder: "hover:border-[#10A37F]/40",
+    hoverBg: "hover:bg-[#10A37F]/5",
+    hoverShadow: "hover:shadow-[0_10px_24px_-4px_rgba(16,163,127,0.18)]",
+    activeText: "group-hover:text-[#10A37F]",
+    logoSrc: "/Home/HeroSection/OpenAI.png",
+  },
+  {
+    name: "MongoDB Atlas",
+    role: "Vector Search",
+    hoverBorder: "hover:border-[#00ED64]/40",
+    hoverBg: "hover:bg-[#00ED64]/5",
+    hoverShadow: "hover:shadow-[0_10px_24px_-4px_rgba(0,237,100,0.18)]",
+    activeText: "group-hover:text-[#00684A]",
+    logoSrc: "/Home/HeroSection/MongoDB_ForestGreen.png",
+  },
+  {
+    name: "Groq",
+    role: "LPU Inference",
+    hoverBorder: "hover:border-[#F55036]/40",
+    hoverBg: "hover:bg-[#F55036]/5",
+    hoverShadow: "hover:shadow-[0_10px_24px_-4px_rgba(245,80,54,0.18)]",
+    activeText: "group-hover:text-[#F55036]",
+    logoSrc: "/Home/HeroSection/groq.png",
+  },
+  {
+    name: "LangChain",
+    role: "Agent Runtime",
+    hoverBorder: "hover:border-emerald-700/40",
+    hoverBg: "hover:bg-emerald-900/5",
+    hoverShadow: "hover:shadow-[0_10px_24px_-4px_rgba(16,185,129,0.18)]",
+    activeText: "group-hover:text-emerald-800",
+    logoSrc: "/Home/HeroSection/LangChain_Logo_1.png",
+  },
+  {
+    name: "Anthropic",
+    role: "Reasoning Engine",
+    hoverBorder: "hover:border-[#D97757]/40",
+    hoverBg: "hover:bg-[#D97757]/5",
+    hoverShadow: "hover:shadow-[0_10px_24px_-4px_rgba(217,119,87,0.18)]",
+    activeText: "group-hover:text-[#D97757]",
+    logoSrc: "/Home/HeroSection/claude.png",
+  },
+];
 
 export default function HeroSection() {
   const router = useRouter();
   const gradId = useId();
+  const pathRef = useRef(null);
 
+  // Normalised progress along the path: 0 to 1
   const [headProgress, setHeadProgress] = useState(0);
   const [tailProgress, setTailProgress] = useState(0);
 
+  // Exact normalised positions (0 to 1) calculated from the SVG path
+  const [nodeTriggers, setNodeTriggers] = useState({
+    node1: 0.12,
+    node2: 0.42,
+    node3: 0.65,
+    node4: 0.88,
+  });
+
   useEffect(() => {
+    // Measure the actual path geometry
+    if (pathRef.current) {
+      const totalLen = pathRef.current.getTotalLength();
+      // Physical X anchors defined in SVG coordinates:
+      // Node 1: x = 160 (y = 44)
+      // Node 2: x = 600 (y = 124)
+      // Node 3: x = 920 (y = 124)
+      // Node 4: x = 1220 (y = 124)
+
+      // Calculate exact distance along the curve for each point
+      const getDistAtX = (targetX) => {
+        let low = 0;
+        let high = totalLen;
+        for (let i = 0; i < 30; i++) {
+          const mid = (low + high) / 2;
+          const pt = pathRef.current.getPointAtLength(mid);
+          if (pt.x < targetX) low = mid;
+          else high = mid;
+        }
+        return (low + high) / 2;
+      };
+
+      const d1 = getDistAtX(160) / totalLen;
+      const d2 = getDistAtX(600) / totalLen;
+      const d3 = getDistAtX(920) / totalLen;
+      const d4 = getDistAtX(1220) / totalLen;
+
+      setNodeTriggers({
+        node1: d1,
+        node2: d2,
+        node3: d3,
+        node4: d4,
+      });
+    }
+
     let animationFrame;
-    const CYCLE_DURATION = 11000; // 11s total cycle
+    const CYCLE_DURATION = 11000;
     const startTime = performance.now();
 
     const updateLoop = (now) => {
@@ -32,19 +137,19 @@ export default function HeroSection() {
       const t = elapsed / CYCLE_DURATION;
 
       if (t < 0.55) {
-        // Phase 1: Progressive fill from left to right
+        // Phase 1: Progressive fill left to right
         const fillNorm = t / 0.55;
-        setHeadProgress(fillNorm * 100);
+        setHeadProgress(fillNorm);
         setTailProgress(0);
       } else if (t < 0.75) {
-        // Phase 2: Hold all nodes active
-        setHeadProgress(100);
+        // Phase 2: Hold all active
+        setHeadProgress(1);
         setTailProgress(0);
       } else {
-        // Phase 3: Gray wipe clears from left to right
+        // Phase 3: Gray wipe clears left to right
         const clearNorm = (t - 0.75) / 0.25;
-        setHeadProgress(100);
-        setTailProgress(clearNorm * 100);
+        setHeadProgress(1);
+        setTailProgress(clearNorm);
       }
 
       animationFrame = requestAnimationFrame(updateLoop);
@@ -54,308 +159,288 @@ export default function HeroSection() {
     return () => cancelAnimationFrame(animationFrame);
   }, []);
 
-  // Spatial node triggers matching x% along the canvas
-  const isNode1Active = headProgress >= 18 && tailProgress < 18;
-  const isNode2Active = headProgress >= 38 && tailProgress < 38;
-  const isNode3Active = headProgress >= 52 && tailProgress < 52;
-  const isNode4Active = headProgress >= 66 && tailProgress < 66;
+  // Spatial triggers derived dynamically from actual path length
+  const isNode1Active =
+    headProgress >= nodeTriggers.node1 && tailProgress < nodeTriggers.node1;
+  const isNode2Active =
+    headProgress >= nodeTriggers.node2 && tailProgress < nodeTriggers.node2;
+  const isNode3Active =
+    headProgress >= nodeTriggers.node3 && tailProgress < nodeTriggers.node3;
+  const isNode4Active =
+    headProgress >= nodeTriggers.node4 && tailProgress < nodeTriggers.node4;
 
-  // Staggered loaders inside Node 2
-  const step1Done = headProgress >= 41;
-  const step2Done = headProgress >= 46;
-  const step3Done = headProgress >= 51;
-  const step4Done = headProgress >= 56;
+  // Staggered execution ticks inside Node 2
+  const step1Done = headProgress >= nodeTriggers.node2 + 0.03;
+  const step2Done = headProgress >= nodeTriggers.node2 + 0.07;
+  const step3Done = headProgress >= nodeTriggers.node2 + 0.11;
+  const step4Done = headProgress >= nodeTriggers.node2 + 0.15;
+
+  const loopItems = [...TECH_PARTNERS, ...TECH_PARTNERS];
 
   return (
-    <section className="relative w-full min-h-screen bg-[#FAF9F6] text-slate-900 overflow-hidden font-['PP_Neue_Montreal',Arial,sans-serif] pt-12 pb-24 select-none">
+    <section className="relative w-full min-h-screen bg-[#FAF9F6]/40 text-slate-900 overflow-hidden font-['PP_Neue_Montreal',Arial,sans-serif] pt-8 sm:pt-12 pb-20 sm:pb-24 select-none">
       {/* ========================================================================= */}
-      {/* 1. PROGRESSIVE FLOW PIPELINE */}
+      {/* 1. PROGRESSIVE FLOW PIPELINE (UNIFIED SVG COORDINATE SPACE) */}
       {/* ========================================================================= */}
-      <div className="relative w-full overflow-visible mb-12">
-        {/* Full-width responsive SVG layer */}
-        <div className="absolute inset-x-0 top-0 h-[180px] pointer-events-none w-full">
-          <svg
-            className="w-full h-full"
-            viewBox="0 0 1440 180"
+      <div className="hidden lg:block relative w-full max-w-[1400px] mx-auto overflow-visible mb-6">
+        <svg viewBox="0 0 1400 340" className="w-full h-auto overflow-visible">
+          <defs>
+            <linearGradient
+              id={`grad-${gradId}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="0%"
+            >
+              <stop offset="0%" stopColor="#E11D48" />
+              <stop offset="45%" stopColor="#F97316" />
+              <stop offset="100%" stopColor="#F59E0B" />
+            </linearGradient>
+
+            <clipPath id={`clip-${gradId}`}>
+              <rect
+                x={`${tailProgress * 1400}`}
+                y="0"
+                width={`${Math.max(0, headProgress - tailProgress) * 1400}`}
+                height="340"
+              />
+            </clipPath>
+          </defs>
+
+          {/* BASE STATIC TRACK */}
+          <path
+            ref={pathRef}
+            d="M 0 44 L 460 44 C 505 44, 475 124, 520 124 L 1400 124"
+            stroke="#E2E8F0"
+            strokeWidth="2.5"
             fill="none"
-            preserveAspectRatio="none"
+          />
+
+          {/* PROGRESSIVE COLORED STROKE */}
+          <path
+            d="M 0 44 L 460 44 C 505 44, 475 124, 520 124 L 1400 124"
+            stroke={`url(#grad-${gradId})`}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            fill="none"
+            clipPath={`url(#clip-${gradId})`}
+          />
+
+          {/* ------------------------------------------------------------- */}
+          {/* NODE 1: ASK AGENT (x = 80, path y = 44) */}
+          {/* ------------------------------------------------------------- */}
+          <foreignObject
+            x="80"
+            y="28"
+            width="300"
+            height="280"
+            className="overflow-visible"
           >
-            <defs>
-              <linearGradient
-                id={`grad-${gradId}`}
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="0%"
-              >
-                <stop offset="0%" stopColor="#E11D48" />
-                <stop offset="45%" stopColor="#F97316" />
-                <stop offset="100%" stopColor="#F59E0B" />
-              </linearGradient>
-
-              {/* Dynamic window clip revealing gradient between tailProgress & headProgress */}
-              <clipPath id={`clip-${gradId}`}>
-                <rect
-                  x={`${tailProgress}%`}
-                  y="0"
-                  width={`${Math.max(0, headProgress - tailProgress)}%`}
-                  height="180"
-                />
-              </clipPath>
-            </defs>
-
-            {/* BASE STATIC TRACK */}
-            <path
-              d="M 0 44 L 460 44 C 505 44, 475 124, 520 124 L 1440 124"
-              stroke="#E2E8F0"
-              strokeWidth="2.5"
-              fill="none"
-            />
-
-            {/* PROGRESSIVE COLORED STROKE */}
-            <path
-              d="M 0 44 L 460 44 C 505 44, 475 124, 520 124 L 1440 124"
-              stroke={`url(#grad-${gradId})`}
-              strokeWidth="3.5"
-              strokeLinecap="round"
-              fill="none"
-              clipPath={`url(#clip-${gradId})`}
-            />
-          </svg>
-        </div>
-
-        {/* NODES CONTAINER */}
-        <div className="relative max-w-[1360px] mx-auto px-6 sm:px-10 h-[260px]">
-          {/* ------------------------------------------------------------- */}
-          {/* NODE 1: ASK AGENT (Path Level: y = 44px) */}
-          {/* ------------------------------------------------------------- */}
-          <div className="absolute left-[4%] sm:left-[6%] top-[44px] -translate-y-1/10 flex flex-col items-start z-10">
-            {/* Morphing Pill */}
-            <motion.div
-              layout
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full border transition-colors duration-300 ${
-                isNode1Active
-                  ? "bg-white border-rose-400 text-rose-600 shadow-lg shadow-rose-500/15"
-                  : "bg-white border-slate-200 text-slate-400"
-              }`}
-            >
-              <Sparkles
-                size={13}
-                className={`shrink-0 transition-colors duration-300 ${
+            <div className="flex flex-col items-start">
+              <motion.div
+                layout
+                transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                className={`inline-flex items-center h-8 px-2 rounded-full border transition-all duration-300 ${
                   isNode1Active
-                    ? "text-rose-600 animate-pulse"
-                    : "text-slate-400"
+                    ? "bg-white border-rose-400 text-rose-600 shadow-md shadow-rose-500/15"
+                    : "bg-white border-slate-200 text-slate-400"
                 }`}
-              />
-              <AnimatePresence initial={false}>
-                {isNode1Active && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pr-1"
-                  >
-                    Ask Agent
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.div>
+              >
+                <Sparkles
+                  size={13}
+                  className={`shrink-0 transition-colors ${
+                    isNode1Active
+                      ? "text-rose-600 animate-pulse"
+                      : "text-slate-400"
+                  }`}
+                />
+                <AnimatePresence>
+                  {isNode1Active && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pl-1.5 pr-1"
+                    >
+                      Ask Agent
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.div>
 
-            {/* Prompt Box */}
-            <div className="mt-4 w-60 sm:w-64 h-[120px]">
-              <AnimatePresence>
-                {isNode1Active && (
-                  <motion.div
-                    initial={{
-                      opacity: 0,
-                      y: -12,
-                      scale: 0.94,
-                      filter: "blur(4px)",
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
-                      filter: "blur(0px)",
-                    }}
-                    exit={{
-                      opacity: 0,
-                      y: -8,
-                      scale: 0.96,
-                      filter: "blur(4px)",
-                    }}
-                    transition={{
-                      duration: 0.35,
-                      ease: [0.16, 1, 0.3, 1], // Custom spring curve
-                    }}
-                    className="relative p-3.5 rounded-2xl bg-white/95 backdrop-blur-xl border border-rose-200/80 shadow-[0_12px_32px_-8px_rgba(225,29,72,0.12),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full group"
-                  >
-                    {/* Top Subtle Connector Triangle pointing back up to the Sparkle pill */}
-                    <div className="absolute -top-1.5 left-6 w-3 h-3 bg-white border-t border-l border-rose-200/80 rotate-45 shadow-[-2px_-2px_4px_rgba(0,0,0,0.01)]" />
-
-                    {/* Header Micro-Tags */}
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                        <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400">
-                          Prompt Input
+              <div className="mt-4 w-64 h-[120px]">
+                <AnimatePresence>
+                  {isNode1Active && (
+                    <motion.div
+                      initial={{
+                        opacity: 0,
+                        y: -12,
+                        scale: 0.94,
+                        filter: "blur(4px)",
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        scale: 1,
+                        filter: "blur(0px)",
+                      }}
+                      exit={{
+                        opacity: 0,
+                        y: -8,
+                        scale: 0.96,
+                        filter: "blur(4px)",
+                      }}
+                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      className="relative p-3.5 rounded-2xl bg-white/95 backdrop-blur-xl border border-rose-200/80 shadow-[0_12px_32px_-8px_rgba(225,29,72,0.12),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full"
+                    >
+                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-white border-t border-l border-rose-200/80 rotate-45" />
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400">
+                            Prompt Input
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-mono text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100 font-bold">
+                          Ch. 4 • Memory
                         </span>
                       </div>
-                      <span className="text-[9px] font-mono text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100">
-                        Ch. 4 • Memory
-                      </span>
-                    </div>
-
-                    {/* Prompt Query Copy */}
-                    <p className="text-[12px] text-slate-800 leading-snug font-medium my-auto pr-1">
-                      Synthesize Chapter 4 memory layout and generate an active
-                      recall exam card.
-                    </p>
-
-                    {/* Bottom Action Tray */}
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-[9px] font-mono text-slate-400">
-                        RAG Target:{" "}
-                        <strong className="text-slate-600 font-semibold">
-                          waitegoos.pdf
-                        </strong>
-                      </span>
-                      <span className="h-6 w-6 rounded-lg bg-gradient-to-r from-rose-500 to-orange-500 text-white flex items-center justify-center shadow-sm shadow-rose-500/30 group-hover:scale-105 transition-transform duration-200">
-                        <ArrowUpRight size={13} strokeWidth={2.5} />
-                      </span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      <p className="text-[12px] text-slate-800 leading-snug font-medium my-auto pr-1">
+                        Synthesize Chapter 4 memory layout and generate an
+                        active recall exam card.
+                      </p>
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[9px] font-mono text-slate-400">
+                          Target:{" "}
+                          <strong className="text-slate-600 font-semibold">
+                            waitegoos.pdf
+                          </strong>
+                        </span>
+                        <span className="h-6 w-6 rounded-lg bg-gradient-to-r from-rose-500 to-orange-500 text-white flex items-center justify-center shadow-sm">
+                          <ArrowUpRight size={13} strokeWidth={2.5} />
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
+          </foreignObject>
 
           {/* ------------------------------------------------------------- */}
-          {/* NODE 2: AGENT WORKFLOW (Path Level: y = 194px) */}
+          {/* NODE 2: AGENT WORKFLOW (x = 540, path y = 124) */}
           {/* ------------------------------------------------------------- */}
-          <div className="absolute left-[30%] sm:left-[31%] top-[192px] -translate-y-1/2 flex flex-col items-start z-10">
-            {/* Morphing Pill */}
-            <motion.div
-              layout
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full border transition-colors duration-300 ${
-                isNode2Active
-                  ? "bg-white border-orange-400 text-orange-600 shadow-lg shadow-orange-500/15"
-                  : "bg-white border-slate-200 text-slate-400"
-              }`}
-            >
-              <Sparkles
-                size={13}
-                className={`shrink-0 transition-colors duration-300 ${
+          <foreignObject
+            x="540"
+            y="108"
+            width="300"
+            height="280"
+            className="overflow-visible"
+          >
+            <div className="flex flex-col items-start">
+              <motion.div
+                layout
+                transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                className={`inline-flex items-center h-8 px-2 rounded-full border transition-all duration-300 ${
                   isNode2Active
-                    ? "text-orange-600 animate-pulse"
-                    : "text-slate-400"
+                    ? "bg-white border-orange-400 text-orange-600 shadow-md shadow-orange-500/15"
+                    : "bg-white border-slate-200 text-slate-400"
                 }`}
-              />
-              <AnimatePresence initial={false}>
-                {isNode2Active && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pr-1"
-                  >
-                    Agent Workflow
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.div>
+              >
+                <Sparkles
+                  size={13}
+                  className={`shrink-0 transition-colors ${
+                    isNode2Active
+                      ? "text-orange-600 animate-pulse"
+                      : "text-slate-400"
+                  }`}
+                />
+                <AnimatePresence>
+                  {isNode2Active && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pl-1.5 pr-1"
+                    >
+                      Agent Workflow
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.div>
 
-            {/* Checklist Box */}
-            <div className="mt-4 w-52 sm:w-60 h-[120px]">
-              <AnimatePresence>
-                {isNode2Active && (
-                  <motion.div
-                    initial={{
-                      opacity: 0,
-                      y: -12,
-                      scale: 0.94,
-                      filter: "blur(4px)",
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
-                      filter: "blur(0px)",
-                    }}
-                    exit={{
-                      opacity: 0,
-                      y: -8,
-                      scale: 0.96,
-                      filter: "blur(4px)",
-                    }}
-                    transition={{
-                      duration: 0.35,
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="relative w-56 sm:w-64 p-3.5 rounded-2xl bg-white/95 backdrop-blur-xl border border-orange-200/80 shadow-[0_12px_32px_-8px_rgba(249,115,22,0.12),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between"
-                  >
-                    {/* Top Anchor Notch pointing up toward Agent Workflow pill */}
-                    <div className="absolute -top-1.5 left-6 w-3 h-3 bg-white border-t border-l border-orange-200/80 rotate-45" />
-
-                    {/* Header Telemetry */}
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                        <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400">
-                          Pipeline Run
+              <div className="mt-4 w-60 h-[140px]">
+                <AnimatePresence>
+                  {isNode2Active && (
+                    <motion.div
+                      initial={{
+                        opacity: 0,
+                        y: -12,
+                        scale: 0.94,
+                        filter: "blur(4px)",
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        scale: 1,
+                        filter: "blur(0px)",
+                      }}
+                      exit={{
+                        opacity: 0,
+                        y: -8,
+                        scale: 0.96,
+                        filter: "blur(4px)",
+                      }}
+                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      className="relative p-3.5 rounded-2xl bg-white/95 backdrop-blur-xl border border-orange-200/80 shadow-[0_12px_32px_-8px_rgba(249,115,22,0.12),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full"
+                    >
+                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-white border-t border-l border-orange-200/80 rotate-45" />
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400">
+                            Pipeline Run
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-mono font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100">
+                          {step4Done ? "4/4 Complete" : "Processing"}
                         </span>
                       </div>
-                      <span className="text-[9px] font-mono font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100">
-                        {step4Done ? "4/4 Complete" : "Processing"}
-                      </span>
-                    </div>
-
-                    {/* Execution Step Rows */}
-                    <div className="space-y-1.5 text-[10px] font-mono">
-                      {/* Step 1 */}
-                      <div
-                        className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors duration-200 ${
-                          step1Done ? "bg-slate-50/80" : "bg-transparent"
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0">
+                      <div className="space-y-1 text-[10px] font-mono">
+                        <div
+                          className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md ${step1Done ? "bg-slate-50/80" : ""}`}
+                        >
                           {step1Done ? (
-                            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                              <Check size={10} strokeWidth={3} />
-                            </span>
+                            <Check
+                              size={11}
+                              className="text-emerald-600 font-bold"
+                            />
                           ) : (
                             <Loader2
                               size={11}
                               className="animate-spin text-orange-500"
                             />
                           )}
+                          <span
+                            className={
+                              step1Done
+                                ? "text-slate-800 font-bold"
+                                : "text-slate-400"
+                            }
+                          >
+                            EXTRACT IN-MEMORY PDF
+                          </span>
                         </div>
-                        <span
-                          className={`transition-colors duration-200 ${
-                            step1Done
-                              ? "text-slate-800 font-semibold"
-                              : "text-slate-400"
-                          }`}
+                        <div
+                          className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md ${step2Done ? "bg-slate-50/80" : ""}`}
                         >
-                          EXTRACT IN-MEMORY PDF
-                        </span>
-                      </div>
-
-                      {/* Step 2 */}
-                      <div
-                        className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors duration-200 ${
-                          step2Done ? "bg-slate-50/80" : "bg-transparent"
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0">
                           {step2Done ? (
-                            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                              <Check size={10} strokeWidth={3} />
-                            </span>
+                            <Check
+                              size={11}
+                              className="text-emerald-600 font-bold"
+                            />
                           ) : step1Done ? (
                             <Loader2
                               size={11}
@@ -364,29 +449,24 @@ export default function HeroSection() {
                           ) : (
                             <span className="w-2 h-2 rounded-full border border-slate-300" />
                           )}
+                          <span
+                            className={
+                              step2Done
+                                ? "text-slate-800 font-bold"
+                                : "text-slate-400"
+                            }
+                          >
+                            REDACT PII PATTERNS
+                          </span>
                         </div>
-                        <span
-                          className={`transition-colors duration-200 ${
-                            step2Done
-                              ? "text-slate-800 font-semibold"
-                              : "text-slate-400"
-                          }`}
+                        <div
+                          className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md ${step3Done ? "bg-slate-50/80" : ""}`}
                         >
-                          REDACT PII PATTERNS
-                        </span>
-                      </div>
-
-                      {/* Step 3 */}
-                      <div
-                        className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors duration-200 ${
-                          step3Done ? "bg-slate-50/80" : "bg-transparent"
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0">
                           {step3Done ? (
-                            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                              <Check size={10} strokeWidth={3} />
-                            </span>
+                            <Check
+                              size={11}
+                              className="text-emerald-600 font-bold"
+                            />
                           ) : step2Done ? (
                             <Loader2
                               size={11}
@@ -395,29 +475,24 @@ export default function HeroSection() {
                           ) : (
                             <span className="w-2 h-2 rounded-full border border-slate-300" />
                           )}
+                          <span
+                            className={
+                              step3Done
+                                ? "text-slate-800 font-bold"
+                                : "text-slate-400"
+                            }
+                          >
+                            COSINE VECTOR CHUNKING
+                          </span>
                         </div>
-                        <span
-                          className={`transition-colors duration-200 ${
-                            step3Done
-                              ? "text-slate-800 font-semibold"
-                              : "text-slate-400"
-                          }`}
+                        <div
+                          className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md ${step4Done ? "bg-slate-50/80" : ""}`}
                         >
-                          COSINE VECTOR CHUNKING
-                        </span>
-                      </div>
-
-                      {/* Step 4 */}
-                      <div
-                        className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors duration-200 ${
-                          step4Done ? "bg-slate-50/80" : "bg-transparent"
-                        }`}
-                      >
-                        <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0">
                           {step4Done ? (
-                            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                              <Check size={10} strokeWidth={3} />
-                            </span>
+                            <Check
+                              size={11}
+                              className="text-emerald-600 font-bold"
+                            />
                           ) : step3Done ? (
                             <Loader2
                               size={11}
@@ -426,199 +501,181 @@ export default function HeroSection() {
                           ) : (
                             <span className="w-2 h-2 rounded-full border border-slate-300" />
                           )}
+                          <span
+                            className={
+                              step4Done
+                                ? "text-slate-800 font-bold"
+                                : "text-slate-400"
+                            }
+                          >
+                            ISOLATE TOP-K CITATIONS
+                          </span>
                         </div>
-                        <span
-                          className={`transition-colors duration-200 ${
-                            step4Done
-                              ? "text-slate-800 font-semibold"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          ISOLATE TOP-K CITATIONS
-                        </span>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
+          </foreignObject>
 
           {/* ------------------------------------------------------------- */}
-          {/* NODE 3: AI DECISIONING (Path Level: y = 194px) */}
+          {/* NODE 3: AI DECISIONING (x = 860, path y = 124) */}
           {/* ------------------------------------------------------------- */}
-          <div className="hidden md:flex absolute left-[56%] top-[194px] -translate-y-1/2 flex-col items-start z-10">
-            {/* Morphing Pill */}
-            <motion.div
-              layout
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full border transition-colors duration-300 ${
-                isNode3Active
-                  ? "bg-white border-amber-400 text-amber-600 shadow-lg shadow-amber-500/15"
-                  : "bg-white border-slate-200 text-slate-400"
-              }`}
-            >
-              <Sparkles
-                size={13}
-                className={`shrink-0 transition-colors duration-300 ${
+          <foreignObject
+            x="860"
+            y="108"
+            width="280"
+            height="280"
+            className="overflow-visible"
+          >
+            <div className="flex flex-col items-start">
+              <motion.div
+                layout
+                transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                className={`inline-flex items-center h-8 px-2 rounded-full border transition-all duration-300 ${
                   isNode3Active
-                    ? "text-amber-600 animate-pulse"
-                    : "text-slate-400"
+                    ? "bg-white border-amber-400 text-amber-600 shadow-md shadow-amber-500/15"
+                    : "bg-white border-slate-200 text-slate-400"
                 }`}
-              />
-              <AnimatePresence initial={false}>
-                {isNode3Active && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pr-1"
-                  >
-                    AI Decisioning
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.div>
+              >
+                <Sparkles
+                  size={13}
+                  className={`shrink-0 transition-colors ${
+                    isNode3Active
+                      ? "text-amber-600 animate-pulse"
+                      : "text-slate-400"
+                  }`}
+                />
+                <AnimatePresence>
+                  {isNode3Active && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pl-1.5 pr-1"
+                    >
+                      AI Decisioning
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.div>
 
-            {/* Semantic Data Card */}
-            <div className="mt-4 w-48 sm:w-52 h-[120px]">
-              <AnimatePresence>
-                {isNode3Active && (
-                  <motion.div
-                    initial={{
-                      opacity: 0,
-                      y: -12,
-                      scale: 0.94,
-                      filter: "blur(4px)",
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
-                      filter: "blur(0px)",
-                    }}
-                    exit={{
-                      opacity: 0,
-                      y: -8,
-                      scale: 0.96,
-                      filter: "blur(4px)",
-                    }}
-                    transition={{
-                      duration: 0.35,
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="relative w-56 sm:w-60 p-3.5 rounded-2xl bg-white/95 backdrop-blur-xl border border-amber-200/80 shadow-[0_12px_32px_-8px_rgba(245,158,11,0.14),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between"
-                  >
-                    {/* Top Anchor Notch pointing up toward AI Decisioning pill */}
-                    <div className="absolute -top-1.5 left-6 w-3 h-3 bg-white border-t border-l border-amber-200/80 rotate-45 shadow-[-2px_-2px_4px_rgba(0,0,0,0.01)]" />
-
-                    {/* Header Telemetry */}
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                        <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400">
-                          Decision Telemetry
+              <div className="mt-4 w-56 h-[140px]">
+                <AnimatePresence>
+                  {isNode3Active && (
+                    <motion.div
+                      initial={{
+                        opacity: 0,
+                        y: -12,
+                        scale: 0.94,
+                        filter: "blur(4px)",
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        scale: 1,
+                        filter: "blur(0px)",
+                      }}
+                      exit={{
+                        opacity: 0,
+                        y: -8,
+                        scale: 0.96,
+                        filter: "blur(4px)",
+                      }}
+                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      className="relative p-3.5 rounded-2xl bg-white/95 backdrop-blur-xl border border-amber-200/80 shadow-[0_12px_32px_-8px_rgba(245,158,11,0.14),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full"
+                    >
+                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-white border-t border-l border-amber-200/80 rotate-45" />
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400">
+                            Decision Proof
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60">
+                          Ranked #1
                         </span>
                       </div>
-                      <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60">
-                        Ranked Top-1
-                      </span>
-                    </div>
-
-                    {/* Metric Breakdown Rows */}
-                    <div className="space-y-1.5 text-[10px] font-mono">
-                      {/* Row 1: Chunk Match & Cosine Score */}
-                      <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <span className="text-slate-400 block text-[9px] uppercase tracking-wider">
+                      <div className="space-y-1.5 text-[10px] font-mono">
+                        <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between">
+                          <span className="text-slate-400 text-[9px]">
                             Chunk Match
                           </span>
-                          <span className="font-semibold text-slate-800">
-                            Page 137, Waite & Goos
+                          <span className="text-amber-600 font-bold">
+                            0.941 Sim
                           </span>
                         </div>
-                        <span className="text-amber-600 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded-md border border-amber-300/40">
-                          0.941 Sim
-                        </span>
-                      </div>
-
-                      {/* Row 2: Grounding Confidence */}
-                      <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <span className="text-slate-400 block text-[9px] uppercase tracking-wider">
-                            Confidence Proof
+                        <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between">
+                          <span className="text-slate-400 text-[9px]">
+                            Confidence
                           </span>
-                          <span className="font-semibold text-slate-800">
-                            Grounding Matrix
+                          <span className="text-emerald-700 font-bold">
+                            0% Hallucination
                           </span>
                         </div>
-                        <span className="text-emerald-700 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-300/40">
-                          0% Hallucination
-                        </span>
-                      </div>
-
-                      {/* Row 3: Inference Engine & Latency */}
-                      <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <span className="text-slate-400 block text-[9px] uppercase tracking-wider">
-                            Inference Node
+                        <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between">
+                          <span className="text-slate-400 text-[9px]">
+                            Engine
                           </span>
-                          <span className="font-semibold text-slate-800">
-                            Groq Llama 3.3 70B
+                          <span className="text-rose-600 font-bold">
+                            Groq 70B
                           </span>
                         </div>
-                        <span className="text-rose-600 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-300/40">
-                          ~380ms
-                        </span>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
+          </foreignObject>
 
           {/* ------------------------------------------------------------- */}
-          {/* NODE 4: PERSONALIZED OUTPUT (Path Level: y = 200px) */}
+          {/* NODE 4: PERSONALIZED OUTPUT (x = 1140, path y = 124) */}
           {/* ------------------------------------------------------------- */}
-          <div className="absolute right-[4%] sm:right-[6%] top-[220px] -translate-y-1/2 flex flex-col items-start z-10">
-            {/* Morphing Pill */}
-            <motion.div
-              layout
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full border transition-colors duration-300 ${
-                isNode4Active
-                  ? "bg-white border-rose-400 text-rose-600 shadow-lg shadow-rose-500/15"
-                  : "bg-white border-slate-200 text-slate-400"
-              }`}
-            >
-              <Sparkles
-                size={13}
-                className={`shrink-0 transition-colors duration-300 ${
+          <foreignObject
+            x="1110"
+            y="108"
+            width="310"
+            height="320"
+            className="overflow-visible"
+          >
+            <div className="flex flex-col items-start">
+              <motion.div
+                layout
+                transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                className={`inline-flex items-center h-8 px-2 rounded-full border transition-all duration-300 ${
                   isNode4Active
-                    ? "text-rose-600 animate-pulse"
-                    : "text-slate-400"
+                    ? "bg-white border-rose-400 text-rose-600 shadow-md shadow-rose-500/15"
+                    : "bg-white border-slate-200 text-slate-400"
                 }`}
-              />
-              <AnimatePresence initial={false}>
-                {isNode4Active && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pr-1"
-                  >
-                    Personalized Output
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.div>
+              >
+                <Sparkles
+                  size={13}
+                  className={`shrink-0 transition-colors ${
+                    isNode4Active
+                      ? "text-rose-600 animate-pulse"
+                      : "text-slate-400"
+                  }`}
+                />
+                <AnimatePresence>
+                  {isNode4Active && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pl-1.5 pr-1"
+                    >
+                      Personalized Output
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.div>
 
-            {/* Dropdown Output Card directly under Node 4 */}
-            <div className="mt-4 w-60 sm:w-64 h-[180px]">
-              <div className="mt-8 w-72 sm:w-80">
+              <div className="mt-4 w-72">
                 <AnimatePresence>
                   {isNode4Active && (
                     <motion.div
@@ -640,17 +697,11 @@ export default function HeroSection() {
                         scale: 0.96,
                         filter: "blur(4px)",
                       }}
-                      transition={{
-                        duration: 0.38,
-                        ease: [0.16, 1, 0.3, 1],
-                      }}
-                      className="relative p-3.5 rounded-3xl bg-white/95 backdrop-blur-xl border border-rose-200/80 shadow-[0_20px_40px_-12px_rgba(225,29,72,0.16),0_6px_20px_-6px_rgba(0,0,0,0.06)] flex flex-col gap-3"
+                      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+                      className="relative p-3.5 rounded-3xl bg-white/95 backdrop-blur-xl border border-rose-200/80 shadow-[0_20px_40px_-12px_rgba(225,29,72,0.16),0_6px_20px_-6px_rgba(0,0,0,0.06)] flex flex-col gap-2.5"
                     >
-                      {/* Top Anchor Notch pointing up directly to the Personalized Output pill */}
-                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-white border-t border-l border-rose-200/80 rotate-45 shadow-[-2px_-2px_4px_rgba(0,0,0,0.01)]" />
-
-                      {/* Header Telemetry */}
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-white border-t border-l border-rose-200/80 rotate-45" />
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                         <div className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                           <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400">
@@ -662,14 +713,8 @@ export default function HeroSection() {
                         </span>
                       </div>
 
-                      {/* Visual Media Canvas (Warm Cinematic Mesh Background) */}
-                      <div className="relative h-32 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-slate-800 p-3 flex flex-col justify-between">
-                        {/* Subtle Ambient Mesh Glows */}
-                        <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-rose-500/25 blur-2xl pointer-events-none" />
-                        <div className="absolute -left-8 -bottom-8 w-28 h-28 rounded-full bg-orange-500/20 blur-2xl pointer-events-none" />
-
-                        {/* Top Canvas Tag Strip */}
-                        <div className="relative z-10 flex items-center justify-between">
+                      <div className="relative h-28 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-slate-800 p-3 flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
                           <span className="text-[9px] font-mono font-bold uppercase tracking-wider bg-black/60 text-white backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10">
                             Exam Recall Card
                           </span>
@@ -677,9 +722,7 @@ export default function HeroSection() {
                             0% Hallucination
                           </span>
                         </div>
-
-                        {/* Canvas Bottom Title and Source Reference */}
-                        <div className="relative z-10">
+                        <div>
                           <p className="text-xs font-bold text-white tracking-tight leading-tight drop-shadow-sm">
                             Row-Major Offset Mapping
                           </p>
@@ -689,8 +732,7 @@ export default function HeroSection() {
                         </div>
                       </div>
 
-                      {/* Formula Block */}
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 font-mono text-[10px] text-slate-800 flex items-center justify-between">
+                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 font-mono text-[10px] text-slate-800 flex items-center justify-between">
                         <span className="text-slate-400 text-[9px] uppercase tracking-wider">
                           Formula
                         </span>
@@ -699,10 +741,9 @@ export default function HeroSection() {
                         </span>
                       </div>
 
-                      {/* Launch Workspace CTA */}
                       <button
                         onClick={() => router.push("/dashboard")}
-                        className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 via-orange-500 to-amber-500 hover:opacity-95 text-white font-bold text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-900/20 active:scale-[0.98] cursor-pointer"
+                        className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-rose-600 via-orange-500 to-amber-500 hover:opacity-95 text-white font-bold text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-900/20 active:scale-[0.98] cursor-pointer"
                       >
                         <span>Inspect In Workspace</span>
                         <ArrowUpRight size={13} strokeWidth={2.5} />
@@ -712,6 +753,49 @@ export default function HeroSection() {
                 </AnimatePresence>
               </div>
             </div>
+          </foreignObject>
+        </svg>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MOBILE / TABLET HORIZONTAL STEPPER (< 1024px) */}
+      {/* ========================================================================= */}
+      <div className="block lg:hidden w-full px-6 mb-8 overflow-x-auto no-scrollbar">
+        <div className="flex gap-4 min-w-[720px] pb-2">
+          <div className="flex-1 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+            <span className="text-[10px] font-bold uppercase text-rose-600 flex items-center gap-1">
+              <Sparkles size={11} /> 01 • Ask Agent
+            </span>
+            <p className="text-xs text-slate-800 font-medium mt-2">
+              Synthesize Chapter 4 memory layout for exam prep.
+            </p>
+          </div>
+
+          <div className="flex-1 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between font-mono text-[10px]">
+            <span className="font-bold uppercase text-orange-600 flex items-center gap-1">
+              <Layers size={11} /> 02 • Workflow
+            </span>
+            <p className="text-slate-600 mt-2">
+              PDF Parser • PII Redact • Vector Chunk
+            </p>
+          </div>
+
+          <div className="flex-1 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between font-mono text-[10px]">
+            <span className="font-bold uppercase text-amber-600 flex items-center gap-1">
+              <Cpu size={11} /> 03 • Decisioning
+            </span>
+            <p className="text-slate-600 mt-2">
+              Cosine: 0.941 • 0% Hallucination
+            </p>
+          </div>
+
+          <div className="flex-1 p-4 rounded-2xl bg-slate-950 text-white border border-slate-800 shadow-sm flex flex-col justify-between">
+            <span className="text-[10px] font-bold uppercase text-emerald-400 flex items-center gap-1">
+              <BookmarkCheck size={11} /> 04 • Active Recall
+            </span>
+            <p className="text-[11px] font-bold mt-1">
+              Row-Major Mapping [p. 137]
+            </p>
           </div>
         </div>
       </div>
@@ -719,25 +803,25 @@ export default function HeroSection() {
       {/* ========================================================================= */}
       {/* 2. EDITORIAL HERO HEADLINE & ACTIONS */}
       {/* ========================================================================= */}
-      <div className="max-w-[1360px] mx-auto px-6 sm:px-10 mt-6 sm:mt-8">
+      <div className="max-w-[1360px] mx-auto px-6 sm:px-10 mt-2 sm:mt-6">
         <div className="max-w-3xl">
-          <h1 className="text-5xl sm:text-7xl lg:text-8xl font-medium tracking-tight text-slate-950 leading-[1.05]">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-medium tracking-tight text-slate-950 leading-[1.08] sm:leading-[1.05]">
             The student, <br />
             <span className="font-serif italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-rose-600 via-orange-500 to-amber-500">
               multiplied.
             </span>
           </h1>
 
-          <p className="mt-8 text-base sm:text-xl text-slate-600 leading-relaxed max-w-xl font-normal">
+          <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl text-slate-600 leading-relaxed max-w-xl font-normal">
             NexusNode is the agentic document intelligence system that
             synthesizes textbooks, handwritten notes, and lecture audio into
             verified, 1:1 exam mastery.
           </p>
 
-          <div className="flex flex-wrap items-center gap-4 mt-10">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 sm:gap-4 mt-8 sm:mt-10">
             <button
               onClick={() => router.push("/dashboard")}
-              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-rose-600 via-orange-500 to-amber-500 hover:opacity-95 text-white font-bold text-sm transition-all shadow-md shadow-rose-900/20 active:scale-95 cursor-pointer"
+              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-rose-600 via-orange-500 to-amber-500 hover:opacity-95 text-white font-bold text-sm transition-all shadow-md shadow-rose-900/20 active:scale-95 cursor-pointer text-center"
             >
               Launch Workspace
             </button>
@@ -751,7 +835,7 @@ export default function HeroSection() {
                   router.push("/dashboard");
                 }
               }}
-              className="px-5 py-3.5 rounded-xl text-slate-700 hover:text-slate-950 text-sm font-bold transition-colors hover:bg-slate-100 cursor-pointer"
+              className="px-5 py-3.5 rounded-xl text-slate-700 hover:text-slate-950 text-sm font-bold transition-colors hover:bg-slate-100 cursor-pointer text-center"
             >
               See how it works →
             </button>
@@ -761,31 +845,40 @@ export default function HeroSection() {
         {/* ========================================================================= */}
         {/* 3. ACADEMIC & TRUST FOUNDATIONS STRIP */}
         {/* ========================================================================= */}
-        <div className="mt-28 pt-8 border-t border-slate-200/90">
-          <p className="text-xs font-mono tracking-wider uppercase text-slate-400">
-            Engineered with verified academic technologies & benchmarks
-          </p>
+        <div className="mt-16 sm:mt-24 pt-6 relative overflow-hidden select-none">
+          {/* Edge-to-Edge Fog Masks */}
+          <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-48 bg-gradient-to-r from-[#FAF9F6] via-[#FAF9F6]/80 to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-24 sm:w-48 bg-gradient-to-l from-[#FAF9F6] via-[#FAF9F6]/80 to-transparent z-10 pointer-events-none" />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 items-center mt-6 text-slate-500 font-bold text-xs sm:text-sm">
-            <div className="flex items-center gap-1.5 hover:text-rose-600 transition-colors">
-              <Cpu size={16} /> Groq Llama 3.3
-            </div>
-            <div className="flex items-center gap-1.5 hover:text-rose-600 transition-colors">
-              <ShieldCheck size={16} /> AES-256 BYOK
-            </div>
-            <div className="flex items-center gap-1.5 hover:text-rose-600 transition-colors">
-              <FileText size={16} /> In-Memory Parser
-            </div>
-            <div className="flex items-center gap-1.5 hover:text-rose-600 transition-colors">
-              <BookOpen size={16} /> Cosine Similarity
-            </div>
-            <div className="flex items-center gap-1.5 hover:text-rose-600 transition-colors">
-              <Sparkles size={16} /> MongoDB Atlas
-            </div>
-            <div className="flex items-center gap-1.5 hover:text-rose-600 transition-colors">
-              <GraduationCap size={16} /> Zero Hallucination
-            </div>
-          </div>
+          <Marquee
+            speed={36}
+            pauseOnHover={true}
+            autoFill={true}
+            gradient={false}
+            className="overflow-visible"
+          >
+            {TECH_PARTNERS.map((item, idx) => (
+              <div
+                key={`${item.name}-${idx}`}
+                className="group flex items-center gap-3.5 mx-7 sm:mx-10 py-3 cursor-pointer transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-105"
+              >
+                {/* Large Logo: Full Grayscale to Color Pop */}
+                <div className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
+                  <img
+                    src={item.logoSrc}
+                    alt={`${item.name} logo`}
+                    className="w-full h-full object-contain filter grayscale contrast-75 opacity-40 group-hover:filter-none group-hover:opacity-100 transition-all duration-300 ease-out"
+                    loading="lazy"
+                  />
+                </div>
+
+                {/* Large Brand Typography */}
+                <span className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-400 font-['PP_Neue_Montreal',sans-serif] group-hover:text-slate-900 transition-colors duration-300 whitespace-nowrap">
+                  {item.name}
+                </span>
+              </div>
+            ))}
+          </Marquee>
         </div>
       </div>
     </section>

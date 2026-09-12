@@ -1,81 +1,90 @@
-"use client";
-
 import { create } from "zustand";
 
-const themeTokens = {
-  light: {
-    "--bg-primary": "#f8fafc",
-    "--bg-secondary": "#ffffff",
-    "--bg-surface": "#e2e8f0",
-    "--bg-glass": "rgba(255, 255, 255, 0.75)",
-    "--border-primary": "rgba(226, 232, 240, 0.8)",
-    "--border-highlight": "rgba(244, 63, 94, 0.3)",
-    "--text-primary": "#0f172a",
-    "--text-secondary": "#475569",
-    "--text-muted": "#94a3b8",
-    "--accent-primary": "#e11d48",
-    "--accent-hover": "#be123c",
-    "--accent-gradient": "linear-gradient(135deg, #e11d48 0%, #f97316 100%)",
-    "--user-bubble-bg": "#0f172a",
-    "--user-bubble-text": "#ffffff",
-    "--assistant-bubble-bg": "#ffffff",
-    "--assistant-bubble-border": "rgba(226, 232, 240, 0.8)",
-    "--assistant-bubble-text": "#334155",
-    "--citation-card-bg": "#ffffff",
-    "--citation-card-border": "rgba(226, 232, 240, 0.8)",
-    "--citation-badge": "#e11d48",
-    "--code-block-bg": "#0f172a",
+export const PALETTES = {
+  // 1. Signature NexusNode AI (Recommended Premium Default)
+  nexusWarm: {
+    id: "nexus-warm",
+    name: "Nexus Obsidian & Warm Sunset",
+    main: "#E11D48",        // Primary Rose 600
+    mainHover: "#BE123C",   // Rose 700
+    mid: "#F97316",         // Orange 500
+    highlight: "#F59E0B",   // Amber 500
+    accentSuccess: "#10B981",// Emerald 500 (Truth/Grounding)
+    bgCanvas: "#FAF9F6",    // Editorial Soft Linen
+    bgSurface: "#FFFFFF",
+    borderBase: "rgba(226, 232, 240, 0.8)",
+    textPrimary: "#0F172A",
+    textMuted: "#64748B",
+    glowShadow: "rgba(225, 29, 72, 0.15)",
   },
-  dark: {
-    "--bg-primary": "#030712",
-    "--bg-secondary": "#0f172a",
-    "--bg-surface": "#1e293b",
-    "--bg-glass": "rgba(15, 23, 42, 0.75)",
-    "--border-primary": "rgba(255, 255, 255, 0.08)",
-    "--border-highlight": "rgba(16, 185, 129, 0.3)",
-    "--text-primary": "#f8fafc",
-    "--text-secondary": "#94a3b8",
-    "--text-muted": "#64748b",
-    "--accent-primary": "#10b981",
-    "--accent-hover": "#059669",
-    "--accent-gradient": "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)",
-    "--user-bubble-bg": "#059669",
-    "--user-bubble-text": "#ffffff",
-    "--assistant-bubble-bg": "#0b1329",
-    "--assistant-bubble-border": "rgba(51, 65, 85, 0.6)",
-    "--assistant-bubble-text": "#e2e8f0",
-    "--citation-card-bg": "rgba(15, 23, 42, 0.9)",
-    "--citation-card-border": "rgba(16, 185, 129, 0.25)",
-    "--citation-badge": "#34d399",
-    "--code-block-bg": "#020617",
+
+  // 2. The Golden Angle Palette (If you want to test the generated complementary look)
+  calculatedComplementary: {
+    id: "calculated-comp",
+    name: "Calculated Complementary",
+    main: "#E11D48",
+    mainHover: "#C0163B",
+    mid: "#946B74",
+    highlight: "#1DE12D",
+    accentSuccess: "#0E7117",
+    bgCanvas: "#FBF9FA",
+    bgSurface: "#FFFFFF",
+    borderBase: "rgba(148, 107, 116, 0.2)",
+    textPrimary: "#1C1416",
+    textMuted: "#946B74",
+    glowShadow: "rgba(225, 29, 72, 0.18)",
+  },
+
+  // 3. Cyber Obsidian (Monochrome Deep Dark Mode)
+  cyberObsidian: {
+    id: "cyber-obsidian",
+    name: "Cyber Obsidian Dark",
+    main: "#F43F5E",
+    mainHover: "#E11D48",
+    mid: "#FB923C",
+    highlight: "#FBBF24",
+    accentSuccess: "#34D399",
+    bgCanvas: "#09090B",
+    bgSurface: "#18181B",
+    borderBase: "rgba(39, 39, 42, 0.8)",
+    textPrimary: "#F8FAFC",
+    textMuted: "#94A3B8",
+    glowShadow: "rgba(244, 63, 94, 0.22)",
   },
 };
 
-export const useTheme = create((set, get) => ({
-  theme: "light",
-  initTheme: () => {
-    if (typeof window === "undefined") return;
-    const stored = localStorage.getItem("nexus-theme");
-    const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = stored || (systemDark ? "dark" : "light");
-    get().setTheme(initialTheme);
+export const useThemeStore = create((set, get) => ({
+  activePaletteKey: "nexusWarm",
+  palette: PALETTES.nexusWarm,
+
+  // Set predefined palette
+  setPalette: (paletteKey) => {
+    const nextPalette = PALETTES[paletteKey] || PALETTES.nexusWarm;
+    set({ activePaletteKey: paletteKey, palette: nextPalette });
+    get().applyCssVariables(nextPalette);
   },
-  setTheme: (theme) => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("nexus-theme", theme);
+
+  // Custom live token adjustments
+  updateCustomToken: (tokenKey, value) => {
+    const updated = { ...get().palette, [tokenKey]: value };
+    set({ palette: updated });
+    get().applyCssVariables(updated);
+  },
+
+  // Injects CSS variables onto :root for universal CSS / Tailwind use
+  applyCssVariables: (tokens) => {
+    if (typeof document === "undefined") return;
     const root = document.documentElement;
-    const tokens = themeTokens[theme];
-
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-
-    Object.entries(tokens).forEach(([key, val]) => {
-      root.style.setProperty(key, val);
-    });
-
-    set({ theme });
+    root.style.setProperty("--color-main", tokens.main);
+    root.style.setProperty("--color-main-hover", tokens.mainHover);
+    root.style.setProperty("--color-mid", tokens.mid);
+    root.style.setProperty("--color-highlight", tokens.highlight);
+    root.style.setProperty("--color-success", tokens.accentSuccess);
+    root.style.setProperty("--color-canvas", tokens.bgCanvas);
+    root.style.setProperty("--color-surface", tokens.bgSurface);
+    root.style.setProperty("--color-border", tokens.borderBase);
+    root.style.setProperty("--color-text-primary", tokens.textPrimary);
+    root.style.setProperty("--color-text-muted", tokens.textMuted);
+    root.style.setProperty("--color-glow", tokens.glowShadow);
   },
 }));
