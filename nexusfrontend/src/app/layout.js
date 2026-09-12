@@ -41,7 +41,7 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/favicon/logo.png" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen bg-slate-50`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen bg-[var(--color-canvas)] text-[var(--color-text-primary)]`}
       >
         <LayoutWrapper>{children}</LayoutWrapper>
       </body>

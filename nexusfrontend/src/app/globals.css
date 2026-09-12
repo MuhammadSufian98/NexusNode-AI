@@ -13,7 +13,39 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Essential Lenis Core Styles */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* Remove any global scroll-behavior: smooth from html/body */
+html {
+  scroll-behavior: auto !important;
+}
+
+/* If overflow-x clipping is needed, apply it to a child wrapper inside body, NEVER on html/body */
 body {
+  overflow-x: hidden;
+  position: relative;
+  width: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-primary, #f8fafc);
   color: var(--text-primary, #0f172a);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
