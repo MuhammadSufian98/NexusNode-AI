@@ -15,13 +15,32 @@ const documentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    name: {
+      type: String,
+    },
     pdfUrl: {
       type: String,
       required: true,
     },
     cloudinaryPublicId: {
       type: String,
-      required: true,
+      default: null,
+    },
+    publicId: {
+      type: String,
+      default: null,
+    },
+    pages: {
+      type: Number,
+      default: 1,
+    },
+    size: {
+      type: String,
+      default: null,
+    },
+    fileSize: {
+      type: Number,
+      default: 0,
     },
     status: {
       type: String,
@@ -35,6 +54,23 @@ const documentSchema = new mongoose.Schema(
     chunkCount: {
       type: Number,
       default: 0,
+    },
+    totalPageCount: {
+      type: Number,
+      default: 1,
+    },
+    indexedPageCount: {
+      type: Number,
+      default: 0,
+    },
+    vectorTier: {
+      type: String,
+      enum: ["25%", "50%", "75%", "100%", "complete"],
+      default: "100%",
+    },
+    indexingProgress: {
+      type: Number,
+      default: 100,
     },
     uploadedAt: {
       type: Date,

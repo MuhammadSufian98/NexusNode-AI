@@ -19,10 +19,16 @@ export default function NarrativePipeline() {
   });
 
   const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 90,
-    damping: 24,
-    restDelta: 0.0008,
+    stiffness: 70,
+    damping: 26,
+    restDelta: 0.005,
   });
+
+  // Hoisted transforms to prevent runtime hook recreation
+  const path1Length = useTransform(smoothProgress, [0.0, 0.2], [0, 1]);
+  const path2Length = useTransform(smoothProgress, [0.2, 0.42], [0, 1]);
+  const path3Length = useTransform(smoothProgress, [0.42, 0.68], [0, 1]);
+  const path4Length = useTransform(smoothProgress, [0.65, 0.88], [0, 1]);
 
   const label1Progress = useTransform(smoothProgress, [0.02, 0.1], [0.25, 1]);
   const sec1Progress = useTransform(smoothProgress, [0.04, 0.16], [0.35, 1]);
@@ -61,12 +67,13 @@ export default function NarrativePipeline() {
       </div>
 
       <div className="relative max-w-6xl mx-auto px-6 sm:px-10 flex flex-col gap-10">
-        <div className="relative w-full rounded-[2.5rem] border border-slate-200/90 bg-white/40 p-8 sm:p-12 lg:p-16 overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none">
+        <div className="relative w-full rounded-[2.5rem] border border-slate-200/90 bg-[var(--color-surface,#ffffff)] p-8 sm:p-12 lg:p-16 overflow-hidden shadow-xs">
+          <div className="absolute inset-0 pointer-events-none" style={{ contain: "paint" }}>
             <svg
               className="w-full h-full"
               preserveAspectRatio="none"
               viewBox="0 0 1000 500"
+              shapeRendering="geometricPrecision"
             >
               <path
                 d="M 40 40 L 960 40 Q 980 40 980 60 L 980 440 Q 980 460 960 460 L 40 460"
@@ -82,7 +89,7 @@ export default function NarrativePipeline() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 style={{
-                  pathLength: useTransform(smoothProgress, [0.0, 0.2], [0, 1]),
+                  pathLength: path1Length,
                 }}
               />
             </svg>
@@ -136,12 +143,13 @@ export default function NarrativePipeline() {
           </motion.div>
         </div>
 
-        <div className="relative w-full rounded-[2.5rem] border border-slate-200/90 bg-white/40 p-8 sm:p-12 lg:p-16 overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none">
+        <div className="relative w-full rounded-[2.5rem] border border-slate-200/90 bg-[var(--color-surface,#ffffff)] p-8 sm:p-12 lg:p-16 overflow-hidden shadow-xs">
+          <div className="absolute inset-0 pointer-events-none" style={{ contain: "paint" }}>
             <svg
               className="w-full h-full"
               preserveAspectRatio="none"
               viewBox="0 0 1000 500"
+              shapeRendering="geometricPrecision"
             >
               <path
                 d="M 960 40 L 40 40 Q 20 40 20 60 L 20 440 Q 20 460 40 460 L 960 460"
@@ -157,7 +165,7 @@ export default function NarrativePipeline() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 style={{
-                  pathLength: useTransform(smoothProgress, [0.2, 0.42], [0, 1]),
+                  pathLength: path2Length,
                 }}
               />
             </svg>
@@ -219,12 +227,13 @@ export default function NarrativePipeline() {
           </motion.div>
         </div>
 
-        <div className="relative w-full rounded-[2.5rem] border border-slate-200/90 bg-white/40 p-8 sm:p-12 lg:p-16 overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none">
+        <div className="relative w-full rounded-[2.5rem] border border-slate-200/90 bg-[var(--color-surface,#ffffff)] p-8 sm:p-12 lg:p-16 overflow-hidden shadow-xs">
+          <div className="absolute inset-0 pointer-events-none" style={{ contain: "paint" }}>
             <svg
               className="w-full h-full"
               preserveAspectRatio="none"
               viewBox="0 0 1000 500"
+              shapeRendering="geometricPrecision"
             >
               <path
                 d="M 40 40 L 960 40 Q 980 40 980 60 L 980 440 Q 980 460 960 460 L 40 460"
@@ -240,11 +249,7 @@ export default function NarrativePipeline() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 style={{
-                  pathLength: useTransform(
-                    smoothProgress,
-                    [0.42, 0.68],
-                    [0, 1],
-                  ),
+                  pathLength: path3Length,
                 }}
               />
             </svg>
@@ -311,12 +316,13 @@ export default function NarrativePipeline() {
           </motion.div>
         </div>
 
-        <div className="relative w-full rounded-[2.5rem] border border-slate-200/90 bg-white/40 p-8 sm:p-12 lg:p-16 overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none">
+        <div className="relative w-full rounded-[2.5rem] border border-slate-200/90 bg-[var(--color-surface,#ffffff)] p-8 sm:p-12 lg:p-16 overflow-hidden shadow-xs">
+          <div className="absolute inset-0 pointer-events-none" style={{ contain: "paint" }}>
             <svg
               className="w-full h-full"
               preserveAspectRatio="none"
               viewBox="0 0 1000 500"
+              shapeRendering="geometricPrecision"
             >
               <path
                 d="M 960 40 L 40 40 Q 20 40 20 60 L 20 440 Q 20 460 40 460 L 960 460"
@@ -332,11 +338,7 @@ export default function NarrativePipeline() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 style={{
-                  pathLength: useTransform(
-                    smoothProgress,
-                    [0.65, 0.88],
-                    [0, 1],
-                  ),
+                  pathLength: path4Length,
                 }}
               />
             </svg>

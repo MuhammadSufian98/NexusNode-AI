@@ -139,7 +139,28 @@ export const useDocumentStore = create((set, get) => ({
     return true;
   },
 
-  // 5. Knowledge Tree Operations
+  // 5. Expand Vector Tier for large documents
+  expandVectorTier: async (id) => {
+    try {
+      const res = await documentsApi.expandVectorTier(id);
+      const updatedDoc = res.document || res;
+      const formattedDoc = formatDocument(updatedDoc);
+
+      set((state) => ({
+        documents: state.documents.map((doc) =>
+          doc.id === id || doc._id === id ? { ...doc, ...formattedDoc } : doc
+        ),
+      }));
+
+      toast.success(res.message || "Vector tier expanded!");
+      return formattedDoc;
+    } catch (error) {
+      toast.error(error.message || "Failed to expand vector tier");
+      return null;
+    }
+  },
+
+  // 6. Knowledge Tree Operations
   fetchGeneratedTreeIds: async () => {
     try {
       const data = await documentsApi.getGeneratedTreeIds();

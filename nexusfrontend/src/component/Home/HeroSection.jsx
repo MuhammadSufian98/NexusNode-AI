@@ -75,71 +75,105 @@ export default function HeroSection() {
   const router = useRouter();
   const gradId = useId();
   const pathRef = useRef(null);
+  const clipRectRef = useRef(null);
 
-  // Normalised progress along the path: 0 to 1
-  const [headProgress, setHeadProgress] = useState(0);
-  const [tailProgress, setTailProgress] = useState(0);
-
-  // Exact normalised positions (0 to 1) calculated from the SVG path
-  const [nodeTriggers, setNodeTriggers] = useState({
-    node1: 0.12,
-    node2: 0.42,
-    node3: 0.65,
-    node4: 0.88,
+  // Discrete state for active nodes (only updates when nodes toggle, avoiding 60-120 fps re-renders)
+  const [activeNodes, setActiveNodes] = useState({
+    node1: false,
+    node2: false,
+    node3: false,
+    node4: false,
+    step1: false,
+    step2: false,
+    step3: false,
+    step4: false,
   });
 
   useEffect(() => {
-    // Measure the actual path geometry
+    let d1 = 0.12;
+    let d2 = 0.42;
+    let d3 = 0.65;
+    let d4 = 0.88;
+
     if (pathRef.current) {
       const totalLen = pathRef.current.getTotalLength();
-
       const getDistAtX = (targetX) => {
         let low = 0;
         let high = totalLen;
-        for (let i = 0; i < 30; i++) {
-          const mid = (low + high) / 2;
+        for (let i = 0; i < 20; i++) {
+          const mid = (low + high) * 0.5;
           const pt = pathRef.current.getPointAtLength(mid);
           if (pt.x < targetX) low = mid;
           else high = mid;
         }
-        return (low + high) / 2;
+        return (low + high) * 0.5;
       };
 
-      const d1 = getDistAtX(160) / totalLen;
-      const d2 = getDistAtX(600) / totalLen;
-      const d3 = getDistAtX(920) / totalLen;
-      const d4 = getDistAtX(1220) / totalLen;
-
-      setNodeTriggers({
-        node1: d1,
-        node2: d2,
-        node3: d3,
-        node4: d4,
-      });
+      d1 = getDistAtX(160) / totalLen;
+      d2 = getDistAtX(600) / totalLen;
+      d3 = getDistAtX(920) / totalLen;
+      d4 = getDistAtX(1220) / totalLen;
     }
 
     let animationFrame;
     const CYCLE_DURATION = 11000;
-    const startTime = performance.now();
+    let startTime = performance.now();
+    let prevStates = "";
 
     const updateLoop = (now) => {
+      if (document.visibilityState === "hidden") {
+        animationFrame = requestAnimationFrame(updateLoop);
+        return;
+      }
+
       const elapsed = (now - startTime) % CYCLE_DURATION;
       const t = elapsed / CYCLE_DURATION;
 
+      let head = 0;
+      let tail = 0;
+
       if (t < 0.55) {
-        // Phase 1: Progressive fill left to right
-        const fillNorm = t / 0.55;
-        setHeadProgress(fillNorm);
-        setTailProgress(0);
+        head = t / 0.55;
+        tail = 0;
       } else if (t < 0.75) {
-        // Phase 2: Hold all active
-        setHeadProgress(1);
-        setTailProgress(0);
+        head = 1;
+        tail = 0;
       } else {
-        // Phase 3: Wipe clears left to right
-        const clearNorm = (t - 0.75) / 0.25;
-        setHeadProgress(1);
-        setTailProgress(clearNorm);
+        head = 1;
+        tail = (t - 0.75) / 0.25;
+      }
+
+      // 1. Direct DOM update for clipPath rect (Zero React reconciler cost)
+      if (clipRectRef.current) {
+        const xPos = tail * 1400;
+        const wVal = Math.max(0, head - tail) * 1400;
+        clipRectRef.current.setAttribute("x", xPos.toFixed(1));
+        clipRectRef.current.setAttribute("width", wVal.toFixed(1));
+      }
+
+      // 2. Discrete state updates only when status changes
+      const n1 = head >= d1 && tail < d1;
+      const n2 = head >= d2 && tail < d2;
+      const n3 = head >= d3 && tail < d3;
+      const n4 = head >= d4 && tail < d4;
+      const s1 = head >= d2 + 0.03;
+      const s2 = head >= d2 + 0.07;
+      const s3 = head >= d2 + 0.11;
+      const s4 = head >= d2 + 0.15;
+
+      const stateKey = `${n1}${n2}${n3}${n4}${s1}${s2}${s3}${s4}`;
+      if (stateKey !== prevStates) {
+        prevStates = stateKey;
+        setActiveNodes({
+          node1: n1,
+          node2: n2,
+          node3: n3,
+          node4: n4,
+          step1: s1,
+          step2: s2,
+          step3: s3,
+          step4: s4,
+        });
       }
 
       animationFrame = requestAnimationFrame(updateLoop);
@@ -149,29 +183,24 @@ export default function HeroSection() {
     return () => cancelAnimationFrame(animationFrame);
   }, []);
 
-  // Spatial triggers derived dynamically from actual path length
-  const isNode1Active =
-    headProgress >= nodeTriggers.node1 && tailProgress < nodeTriggers.node1;
-  const isNode2Active =
-    headProgress >= nodeTriggers.node2 && tailProgress < nodeTriggers.node2;
-  const isNode3Active =
-    headProgress >= nodeTriggers.node3 && tailProgress < nodeTriggers.node3;
-  const isNode4Active =
-    headProgress >= nodeTriggers.node4 && tailProgress < nodeTriggers.node4;
-
-  // Staggered execution ticks inside Node 2
-  const step1Done = headProgress >= nodeTriggers.node2 + 0.03;
-  const step2Done = headProgress >= nodeTriggers.node2 + 0.07;
-  const step3Done = headProgress >= nodeTriggers.node2 + 0.11;
-  const step4Done = headProgress >= nodeTriggers.node2 + 0.15;
+  const {
+    node1: isNode1Active,
+    node2: isNode2Active,
+    node3: isNode3Active,
+    node4: isNode4Active,
+    step1: step1Done,
+    step2: step2Done,
+    step3: step3Done,
+    step4: step4Done,
+  } = activeNodes;
 
   return (
     <section className="relative w-full min-h-screen bg-[var(--color-canvas)]/40 text-[var(--color-text-primary)] overflow-hidden font-['PP_Neue_Montreal',Arial,sans-serif] pt-8 sm:pt-12 pb-20 sm:pb-24 select-none transition-colors duration-200">
       {/* ========================================================================= */}
       {/* 1. PROGRESSIVE FLOW PIPELINE (UNIFIED SVG COORDINATE SPACE) */}
       {/* ========================================================================= */}
-      <div className="hidden lg:block relative w-full max-w-[1400px] mx-auto overflow-visible mb-6">
-        <svg viewBox="0 0 1400 340" className="w-full h-auto overflow-visible pointer-events-none">
+      <div className="hidden lg:block relative w-full max-w-[1400px] mx-auto overflow-visible mb-6" style={{ contain: "paint" }}>
+        <svg viewBox="0 0 1400 340" shapeRendering="geometricPrecision" className="w-full h-auto overflow-visible pointer-events-none">
           <defs>
             <linearGradient
               id={`grad-${gradId}`}
@@ -187,9 +216,10 @@ export default function HeroSection() {
 
             <clipPath id={`clip-${gradId}`}>
               <rect
-                x={`${tailProgress * 1400}`}
+                ref={clipRectRef}
+                x="0"
                 y="0"
-                width={`${Math.max(0, headProgress - tailProgress) * 1400}`}
+                width="0"
                 height="340"
               />
             </clipPath>

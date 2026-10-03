@@ -57,48 +57,18 @@ export default function DocumentIntelligenceNarrative() {
             </div>
 
             <h2 className="text-4xl sm:text-6xl lg:text-7xl font-medium tracking-tight text-slate-950 leading-[1.08] flex flex-wrap">
-              <span className="inline-block w-full">
-                {line1.split("").map((char, index) => {
-                  const charY = useTransform(
-                    headingProgress,
-                    (v) => v * (60 + index * 2.2),
-                  );
-                  const charOpacity = useTransform(
-                    headingProgress,
-                    (v) => 1 - Math.min(Math.abs(v) * 1.5, 1),
-                  );
-                  return (
-                    <motion.span
-                      key={index}
-                      style={{ y: charY, opacity: charOpacity }}
-                      className="inline-block"
-                    >
-                      {char === " " ? "\u00A0" : char}
-                    </motion.span>
-                  );
-                })}
-              </span>
-              <span className="font-serif italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-rose-600 via-orange-500 to-amber-500 inline-block w-full mt-1 sm:mt-2">
-                {line2.split("").map((char, index) => {
-                  const charY = useTransform(
-                    headingProgress,
-                    (v) => v * (80 + index * 3.5),
-                  );
-                  const charOpacity = useTransform(
-                    headingProgress,
-                    (v) => 1 - Math.min(Math.abs(v) * 1.5, 1),
-                  );
-                  return (
-                    <motion.span
-                      key={index}
-                      style={{ y: charY, opacity: charOpacity }}
-                      className="inline-block"
-                    >
-                      {char === " " ? "\u00A0" : char}
-                    </motion.span>
-                  );
-                })}
-              </span>
+              <motion.span
+                style={{ y: paraY, opacity: paraOpacity }}
+                className="inline-block w-full transform-gpu will-change-transform"
+              >
+                Documents didn&apos;t get longer.
+              </motion.span>
+              <motion.span
+                style={{ y: paraY, opacity: paraOpacity }}
+                className="font-serif italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-rose-600 via-orange-500 to-amber-500 inline-block w-full mt-1 sm:mt-2 transform-gpu will-change-transform"
+              >
+                Knowledge got buried.
+              </motion.span>
             </h2>
           </div>
 

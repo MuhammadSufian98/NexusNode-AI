@@ -1,24 +1,24 @@
 /* eslint-disable react/no-unknown-property */
+"use client";
+
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 
 const AntigravityInner = ({
-  count = 500,
-  magnetRadius = 8,
-  ringRadius = 7,
-  waveSpeed = 0.6,
-  waveAmplitude = 1,
-  particleSize = 2,
-  lerpSpeed = 0.09,
-  color = "#5227FF",
+  count = 250,
+  magnetRadius = 6,
+  ringRadius = 5.5,
+  waveSpeed = 0.5,
+  waveAmplitude = 0.8,
+  particleSize = 1.8,
+  lerpSpeed = 0.08,
+  color = "#E11D48",
   autoAnimate = true,
   particleVariance = 1,
   rotationSpeed = 0,
-  depthFactor = 2,
-  pulseSpeed = 13,
-  particleShape = "capsule",
-  fieldStrength = 2,
+  depthFactor = 1.5,
+  pulseSpeed = 8,
 }) => {
   const meshRef = useRef(null);
   const { viewport } = useThree();
@@ -28,32 +28,42 @@ const AntigravityInner = ({
   const mouseCoords = useRef({ x: 0, y: 0 });
   const lastMouseMoveTime = useRef(Date.now());
   const virtualMouse = useRef({ x: 0, y: 0 });
+  const isDocumentVisible = useRef(true);
 
-  // MANUAL MOUSE SYNC: Listen to the entire window
+  // Visibility and mouse listeners with passive events
   useEffect(() => {
     const handleMouseMove = (event) => {
-      // Convert standard mouse coords to R3F normalized coords (-1 to +1)
       mouseCoords.current.x = (event.clientX / window.innerWidth) * 2 - 1;
       mouseCoords.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
       lastMouseMoveTime.current = Date.now();
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    const handleVisibilityChange = () => {
+      isDocumentVisible.current = document.visibilityState === "visible";
+    };
+
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    document.addEventListener("visibilitychange", handleVisibilityChange, { passive: true });
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
+  // Pre-allocate typed particle array for zero-garbage-collection performance
   const particles = useMemo(() => {
     const temp = [];
-    const width = viewport.width || 100;
-    const height = viewport.height || 100;
+    const width = viewport.width || 80;
+    const height = viewport.height || 80;
 
     for (let i = 0; i < count; i++) {
       const t = Math.random() * 100;
-      const speed = 0.01 + Math.random() / 200;
+      const speed = 0.008 + Math.random() / 300;
       const x = (Math.random() - 0.5) * width;
       const y = (Math.random() - 0.5) * height;
-      const z = (Math.random() - 0.5) * 15;
-      const randomRadiusOffset = (Math.random() - 0.5) * 2;
+      const z = (Math.random() - 0.5) * 12;
+      const randomRadiusOffset = (Math.random() - 0.5) * 1.5;
 
       temp.push({
         t,
@@ -71,94 +81,129 @@ const AntigravityInner = ({
   }, [count, viewport.width, viewport.height]);
 
   useFrame((state) => {
+    // Skip all computations if tab is in background
+    if (!isDocumentVisible.current) return;
+
     const mesh = meshRef.current;
     if (!mesh) return;
     const { viewport: v } = state;
 
-    // Use our manually synced mouseCoords instead of state.pointer
     const m = mouseCoords.current;
+    let destX = (m.x * v.width) * 0.5;
+    let destY = (m.y * v.height) * 0.5;
 
-    let destX = (m.x * v.width) / 2;
-    let destY = (m.y * v.height) / 2;
-
-    // Auto-animate fallback
-    if (autoAnimate && Date.now() - lastMouseMoveTime.current > 2000) {
+    // Auto-animate fallback when idle
+    const now = Date.now();
+    if (autoAnimate && now - lastMouseMoveTime.current > 2000) {
       const time = state.clock.getElapsedTime();
-      destX = Math.sin(time * 0.3) * (v.width / 4);
-      destY = Math.cos(time * 0.2) * (v.height / 4);
+      destX = Math.sin(time * 0.25) * (v.width * 0.2);
+      destY = Math.cos(time * 0.18) * (v.height * 0.2);
     }
 
-    virtualMouse.current.x += (destX - virtualMouse.current.x) * 0.1;
-    virtualMouse.current.y += (destY - virtualMouse.current.y) * 0.1;
+    virtualMouse.current.x += (destX - virtualMouse.current.x) * 0.08;
+    virtualMouse.current.y += (destY - virtualMouse.current.y) * 0.08;
 
     const targetX = virtualMouse.current.x;
     const targetY = virtualMouse.current.y;
     const globalRotation = state.clock.getElapsedTime() * rotationSpeed;
 
-    particles.forEach((particle, i) => {
-      let { t, speed, mx, my, mz, randomRadiusOffset } = particle;
-      t = particle.t += speed / 2;
+    const pLen = particles.length;
+    for (let i = 0; i < pLen; i++) {
+      const particle = particles[i];
+      particle.t += particle.speed;
+      const t = particle.t;
 
-      const dx = mx - targetX;
-      const dy = my - targetY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const dx = particle.mx - targetX;
+      const dy = particle.my - targetY;
+      const distSq = dx * dx + dy * dy;
+      const magnetRadiusSq = magnetRadius * magnetRadius;
 
-      let targetPos = { x: mx, y: my, z: mz * depthFactor };
+      let targetXPos = particle.mx;
+      let targetYPos = particle.my;
+      let targetZPos = particle.mz * depthFactor;
 
-      if (dist < magnetRadius) {
+      if (distSq < magnetRadiusSq) {
         const angle = Math.atan2(dy, dx) + globalRotation;
-        const wave = Math.sin(t * waveSpeed + angle) * (0.5 * waveAmplitude);
-        const currentRingRadius = ringRadius + wave + randomRadiusOffset;
-        targetPos.x = targetX + currentRingRadius * Math.cos(angle);
-        targetPos.y = targetY + currentRingRadius * Math.sin(angle);
+        const wave = Math.sin(t * waveSpeed + angle) * (0.4 * waveAmplitude);
+        const currentRingRadius = ringRadius + wave + particle.randomRadiusOffset;
+        targetXPos = targetX + currentRingRadius * Math.cos(angle);
+        targetYPos = targetY + currentRingRadius * Math.sin(angle);
       }
 
-      particle.cx += (targetPos.x - particle.cx) * lerpSpeed;
-      particle.cy += (targetPos.y - particle.cy) * lerpSpeed;
-      particle.cz += (targetPos.z - particle.cz) * lerpSpeed;
+      particle.cx += (targetXPos - particle.cx) * lerpSpeed;
+      particle.cy += (targetYPos - particle.cy) * lerpSpeed;
+      particle.cz += (targetZPos - particle.cz) * lerpSpeed;
 
       dummy.position.set(particle.cx, particle.cy, particle.cz);
       dummy.lookAt(targetX, targetY, particle.cz);
-      dummy.rotateX(Math.PI / 2);
+      dummy.rotateX(Math.PI * 0.5);
 
-      const currentDistToMouse = Math.sqrt(
-        Math.pow(particle.cx - targetX, 2) + Math.pow(particle.cy - targetY, 2),
-      );
+      const cdx = particle.cx - targetX;
+      const cdy = particle.cy - targetY;
+      const currentDistToMouse = Math.sqrt(cdx * cdx + cdy * cdy);
       const distFromRing = Math.abs(currentDistToMouse - ringRadius);
-      let scaleFactor = Math.max(0, Math.min(1, 1 - distFromRing / 8));
+      const scaleFactor = Math.max(0, Math.min(1, 1 - distFromRing / 7));
 
       const finalScale =
         scaleFactor *
-        (0.8 + Math.sin(t * pulseSpeed) * 0.2 * particleVariance) *
+        (0.85 + Math.sin(t * pulseSpeed) * 0.15 * particleVariance) *
         particleSize;
 
       dummy.scale.set(finalScale, finalScale, finalScale);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-    });
+    }
     mesh.instanceMatrix.needsUpdate = true;
   });
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      <capsuleGeometry args={[0.08, 0.3, 4, 8]} />
-      <meshBasicMaterial color={color} transparent opacity={0.6} />
+      <capsuleGeometry args={[0.07, 0.28, 3, 6]} />
+      <meshBasicMaterial color={color} transparent opacity={0.45} depthWrite={false} />
     </instancedMesh>
   );
 };
 
 const Antigravity = (props) => {
+  const [inView, setInView] = useState(true);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setInView(entry.isIntersecting);
+      },
+      { threshold: 0.01 }
+    );
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-      <Canvas
-        camera={{ position: [0, 0, 40], fov: 35 }}
-        dpr={1}
-        gl={{ alpha: true, antialias: false, powerPreference: "low-power" }}
-        // Important: Ensure no internal events interfere
-        style={{ pointerEvents: "none" }}
-      >
-        <AntigravityInner {...props} />
-      </Canvas>
+    <div
+      ref={containerRef}
+      className="fixed inset-0 z-0 pointer-events-none overflow-hidden transform-gpu"
+      style={{ transform: "translateZ(0)" }}
+    >
+      {inView && (
+        <Canvas
+          camera={{ position: [0, 0, 40], fov: 35 }}
+          dpr={[1, 1.5]}
+          frameloop="always"
+          gl={{
+            alpha: true,
+            antialias: false,
+            powerPreference: "high-performance",
+            precision: "mediump",
+          }}
+          style={{ pointerEvents: "none" }}
+        >
+          <AntigravityInner {...props} />
+        </Canvas>
+      )}
     </div>
   );
 };

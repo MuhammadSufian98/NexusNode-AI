@@ -10,6 +10,7 @@ import { getEmbedding } from "../rag/rag.controller.js";
 import { scoreAndSortChunks } from "../utils/vectorMath.js";
 import { decryptSecret } from "../utils/cryptoVault.js";
 import groq from "../utils/groq.js";
+import { createResilientGroqCompletion } from "../utils/resilientGroq.js";
 
 /**
  * Retrieve relevant chunks with hybrid fallback & deduplication
@@ -447,14 +448,25 @@ CRITICAL RULES:
       { role: "user", content: queryText },
     ];
 
-    const citations = results.map((chunk) => ({
-      documentId: chunk.documentId
+    const citations = results.map((chunk) => {
+      const docIdStr = chunk.documentId
         ? chunk.documentId.toString()
-        : chunk._id.toString(),
-      fileName: chunk.fileName || "Document.pdf",
-      pageNumber: chunk.metadata?.page || 1,
-      snippet: (chunk.text || "").slice(0, 200),
-    }));
+        : (resolvedDocId ? resolvedDocId.toString() : chunk._id.toString());
+      const docName = chunk.fileName || parentDoc?.fileName || parentDoc?.name || "Document.pdf";
+      const pageNum = chunk.metadata?.pageNumber || chunk.metadata?.page || 1;
+      const scoreNum = typeof chunk.score === "number" ? chunk.score : 0.88;
+
+      return {
+        documentId: docIdStr,
+        fileName: docName,
+        documentName: docName,
+        pageNumber: pageNum,
+        textSnippet: chunk.text || "",
+        snippet: (chunk.text || "").slice(0, 260),
+        similarityScore: scoreNum,
+        score: scoreNum,
+      };
+    });
 
     // 7. Check for User Custom BYOK Configuration
     const userRecord = await User.findById(req.user._id).select(
@@ -534,41 +546,26 @@ CRITICAL RULES:
 
     // C. Default Groq Fallback Pipeline
     if (!executionSuccess) {
-      const activeModels = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "llama3-70b-8192",
-        "mixtral-8x7b-32768",
-      ];
+      try {
+        const chatCompletion = await createResilientGroqCompletion(groq, {
+          messages: groqMessages,
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          temperature: 0.2,
+          max_tokens: 1500,
+        });
 
-      let lastError = null;
-
-      for (const modelName of activeModels) {
-        try {
-          const chatCompletion = await groq.chat.completions.create({
-            messages: groqMessages,
-            model: modelName,
-            temperature: 0.2,
-            max_tokens: 1500,
-          });
-
-          if (chatCompletion?.choices?.[0]?.message?.content) {
-            assistantResponseText = chatCompletion.choices[0].message.content;
-            executionSuccess = true;
-            break;
-          }
-        } catch (err) {
-          console.warn(`[LLM Call] Model ${modelName} failed: ${err.message}`);
-          lastError = err;
+        if (chatCompletion?.choices?.[0]?.message?.content) {
+          assistantResponseText = chatCompletion.choices[0].message.content;
+          executionSuccess = true;
         }
-      }
-
-      if (!executionSuccess) {
+      } catch (err) {
+        console.error(`[LLM Call] Resilient Groq execution failed: ${err.message}`);
         throw new Error(
-          lastError?.message || "All fallback LLM models failed to respond.",
+          err?.message || "All fallback LLM models failed to respond.",
         );
       }
     }
+
 
     // 8. Persist Messages & Update Session Timestamp
     const userMsg = await Message.create({
@@ -839,24 +836,36 @@ ${contextBlocks}
       { role: "user", content },
     ];
 
-    const chatCompletion = await groq.chat.completions.create({
+    const chatCompletion = await createResilientGroqCompletion(groq, {
       messages: groqMessages,
-      model: "llama-3.1-8b-instant",
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
       temperature: 0.2,
       max_tokens: 1200,
     });
 
+
     const assistantResponseText =
       chatCompletion.choices[0]?.message?.content || "No response generated.";
 
-    const citations = results.map((chunk) => ({
-      documentId: chunk.documentId
+    const citations = results.map((chunk) => {
+      const docIdStr = chunk.documentId
         ? chunk.documentId.toString()
-        : chunk._id.toString(),
-      fileName: chunk.fileName || "Document.pdf",
-      pageNumber: chunk.metadata?.page || 1,
-      snippet: (chunk.text || "").slice(0, 200),
-    }));
+        : (resolvedDocId ? resolvedDocId.toString() : chunk._id.toString());
+      const docName = chunk.fileName || "Document.pdf";
+      const pageNum = chunk.metadata?.pageNumber || chunk.metadata?.page || 1;
+      const scoreNum = typeof chunk.score === "number" ? chunk.score : 0.88;
+
+      return {
+        documentId: docIdStr,
+        fileName: docName,
+        documentName: docName,
+        pageNumber: pageNum,
+        textSnippet: chunk.text || "",
+        snippet: (chunk.text || "").slice(0, 260),
+        similarityScore: scoreNum,
+        score: scoreNum,
+      };
+    });
 
     const assistantMessage = await Message.findOne({
       conversationId: conversation._id,

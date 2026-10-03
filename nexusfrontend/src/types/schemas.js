@@ -116,6 +116,10 @@ export const DEFAULT_DOCUMENT = Object.freeze({
   workspace_id: "",
   size: "0 KB",
   pages: 0,
+  totalPageCount: 0,
+  indexedPageCount: 0,
+  vectorTier: "100%",
+  indexingProgress: 100,
   uploadedAt: new Date().toISOString(),
   status: "ready",
   errorMessage: "",
@@ -191,6 +195,10 @@ export const DEFAULT_SETTINGS_CONFIG = Object.freeze({
  */
 export function createInitialDocument(overrides = {}) {
   const now = new Date().toISOString();
+  const totalPages = typeof overrides.totalPageCount === "number"
+    ? overrides.totalPageCount
+    : (typeof overrides.pages === "number" ? overrides.pages : 0);
+
   return {
     ...DEFAULT_DOCUMENT,
     id: overrides.id || overrides._id || `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -199,7 +207,11 @@ export function createInitialDocument(overrides = {}) {
     pdfUrl: overrides.pdfUrl || "",
     workspace_id: overrides.workspace_id || overrides.documentId || "",
     size: overrides.size || DEFAULT_DOCUMENT.size,
-    pages: typeof overrides.pages === "number" ? overrides.pages : 0,
+    pages: totalPages,
+    totalPageCount: totalPages,
+    indexedPageCount: typeof overrides.indexedPageCount === "number" ? overrides.indexedPageCount : totalPages,
+    vectorTier: overrides.vectorTier || "100%",
+    indexingProgress: typeof overrides.indexingProgress === "number" ? overrides.indexingProgress : 100,
     uploadedAt: overrides.uploadedAt || overrides.createdAt || now,
     status: overrides.status || DEFAULT_DOCUMENT.status,
     errorMessage: overrides.errorMessage || "",
@@ -337,6 +349,10 @@ export const createInitialSettingsConfig = createInitialSettings;
  */
 export function formatDocument(raw) {
   if (!raw || typeof raw !== "object") return createInitialDocument();
+  const totalPages = typeof raw.totalPageCount === "number"
+    ? raw.totalPageCount
+    : (typeof raw.pages === "number" ? raw.pages : 0);
+
   return createInitialDocument({
     id: raw.id || raw._id,
     name: raw.fileName || raw.name || "Untitled Document",
@@ -344,7 +360,11 @@ export function formatDocument(raw) {
     pdfUrl: raw.pdfUrl || "",
     workspace_id: raw.workspace_id || raw.documentId || "",
     size: raw.size || "N/A",
-    pages: typeof raw.pages === "number" ? raw.pages : 0,
+    pages: totalPages,
+    totalPageCount: totalPages,
+    indexedPageCount: typeof raw.indexedPageCount === "number" ? raw.indexedPageCount : totalPages,
+    vectorTier: raw.vectorTier || "100%",
+    indexingProgress: typeof raw.indexingProgress === "number" ? raw.indexingProgress : 100,
     uploadedAt: raw.uploadedAt || raw.createdAt || new Date().toISOString(),
     status: ["ready", "pending", "processing", "error"].includes(raw.status)
       ? raw.status

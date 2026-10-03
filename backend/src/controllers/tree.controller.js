@@ -3,42 +3,30 @@ import DocumentChunk from "../rag/documentChunks.model.js";
 import Document from "../rag/documents.model.js";
 import groq from "../utils/groq.js";
 import { logger } from "../utils/logger.js";
+import { createResilientGroqCompletion } from "../utils/resilientGroq.js";
 
 const generateTreeWithFallback = async (prompt, logContext) => {
-  const models = [
-    "openai/gpt-oss-20b",
-    "openai/gpt-oss-120b",
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-  ];
+  try {
+    const completion = await createResilientGroqCompletion(groq, {
+      messages: [{ role: "user", content: prompt }],
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    });
 
-  let lastError = null;
-
-  for (const model of models) {
-    try {
-      const completion = await groq.chat.completions.create({
-        messages: [{ role: "user", content: prompt }],
-        model: model,
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-      });
-
-      const content = completion.choices[0]?.message?.content;
-      if (content) {
-        return JSON.parse(content);
-      }
-    } catch (err) {
-      lastError = err;
-      console.warn(
-        `[${logContext}] Model ${model} failed: ${err.message}. Trying next candidate...`,
-      );
+    const content = completion.choices[0]?.message?.content;
+    if (content) {
+      return JSON.parse(content);
     }
+    throw new Error("No content generated in response.");
+  } catch (err) {
+    console.warn(`[${logContext}] Resilient Groq execution failed: ${err.message}`);
+    throw new Error(
+      `All LLM models failed for ${logContext}: ${err?.message}`,
+    );
   }
-
-  throw new Error(
-    `All LLM models failed for ${logContext}: ${lastError?.message}`,
-  );
 };
+
 
 export const buildSingleDocumentTree = async (req, res) => {
   try {

@@ -4,6 +4,7 @@ import {
   deleteRequest,
   uploadRequest,
 } from "@/lib/httpClient";
+import API_BASE_URL from "@/lib/apiBaseUrl";
 
 /**
  * Fetch all documents in the vault
@@ -68,6 +69,25 @@ export async function generateMasterTree(config = {}) {
   return postRequest("/api/rag/tree/global", {}, config);
 }
 
+/**
+ * Expand vector index tier for a document
+ * @param {string} id - Document ID
+ * @param {object} [config={}]
+ * @returns {Promise<any>}
+ */
+export async function expandVectorTier(id, config = {}) {
+  return postRequest(`/api/rag/documents/${id}/expand-vector-tier`, {}, config);
+}
+
+/**
+ * Get authenticated PDF streaming proxy URL for a document
+ * @param {string} id - Document ID
+ * @returns {string}
+ */
+export function getDocumentPdfStreamUrl(id) {
+  return `${API_BASE_URL}/api/rag/documents/${id}/view-pdf`;
+}
+
 // Aliases for compatibility
 export const getDocuments = fetchDocuments;
 export const generateOrFetchTree = generateTree;
@@ -77,10 +97,12 @@ export const documentsApi = {
   getDocuments,
   uploadDocument,
   deleteDocument,
+  expandVectorTier,
   getGeneratedTreeIds,
   generateTree,
   generateOrFetchTree,
   generateMasterTree,
+  getDocumentPdfStreamUrl,
 };
 
 export const ragApi = documentsApi;

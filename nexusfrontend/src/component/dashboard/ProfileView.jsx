@@ -65,10 +65,13 @@ export function ProfileView() {
   };
 
   return (
-    <div className="w-full h-full min-h-0 flex flex-col bg-white/60 backdrop-blur-2xl border border-white/80 rounded-3xl overflow-hidden relative select-none p-4 md:p-6 overflow-y-auto custom-scrollbar">
+    <div
+      className="w-full h-full min-h-0 flex flex-col bg-transparent select-none p-4 md:p-6 overflow-y-auto overscroll-contain custom-scrollbar"
+      data-lenis-prevent
+    >
       <div className="max-w-2xl mx-auto w-full space-y-6">
         <div className="flex items-center gap-4">
-          <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-rose-50 via-orange-50 to-amber-50 border border-rose-200 flex items-center justify-center text-rose-600 overflow-hidden shadow-xs">
+          <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-rose-50 via-orange-50 to-amber-50 border border-rose-200 flex items-center justify-center text-rose-600 overflow-hidden shadow-none">
             {user?.avatar ? (
               <Image
                 src={user.avatar}
@@ -91,14 +94,14 @@ export function ProfileView() {
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => avatarInputRef.current?.click()}
-                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 transition-colors cursor-pointer active:scale-95"
+                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 transition-colors cursor-pointer active:scale-[0.98] transition-transform duration-100 ease-out"
               >
                 Change Avatar
               </button>
               {user?.avatar && (
                 <button
                   onClick={handleAvatarDelete}
-                  className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer active:scale-95"
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer active:scale-[0.98] transition-transform duration-100 ease-out"
                 >
                   Remove
                 </button>
@@ -114,8 +117,8 @@ export function ProfileView() {
           </div>
         </div>
 
-        <form onSubmit={handleSave} className="bg-white/80 border border-slate-200/90 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <form onSubmit={handleSave} className="bg-white/60 border border-slate-200/70 rounded-2xl p-5 space-y-4 shadow-none">
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
               Identity & Credentials
             </h3>
@@ -127,7 +130,7 @@ export function ProfileView() {
                   setEmailDraft(user?.email || "");
                   setIsEditing(true);
                 }}
-                className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+                className="text-xs font-bold text-rose-600 hover:underline cursor-pointer active:scale-[0.98]"
               >
                 Edit
               </button>
@@ -135,7 +138,7 @@ export function ProfileView() {
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer active:scale-[0.98]"
               >
                 Cancel
               </button>
@@ -175,7 +178,7 @@ export function ProfileView() {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-gradient-to-r from-rose-600 to-orange-500 text-white rounded-xl text-xs font-bold shadow-xs active:scale-97 cursor-pointer"
+                className="px-4 py-2 bg-gradient-to-r from-rose-600 to-orange-500 text-white rounded-xl text-xs font-bold shadow-xs active:scale-[0.98] transition-transform duration-100 ease-out cursor-pointer"
               >
                 {loading ? "Saving..." : "Save Changes"}
               </button>

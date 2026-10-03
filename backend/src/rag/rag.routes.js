@@ -3,9 +3,12 @@ import multer from "multer";
 import { requireAuth } from "../auth/auth.controller.js";
 import {
   uploadAndProcessPDF,
+  expandVectorTier,
   searchChunks,
   listDocuments,
   deleteDocument,
+  streamDocumentPdf,
+  getDocumentPagePreview,
 } from "./rag.controller.js";
 
 const router = Router();
@@ -54,8 +57,14 @@ const uploadSinglePDF = (req, res, next) => {
 };
 
 router.post("/upload", requireAuth, uploadSinglePDF, uploadAndProcessPDF);
+router.post("/documents/:id/expand-vector-tier", requireAuth, expandVectorTier);
 router.post("/search", requireAuth, searchChunks);
 router.get("/documents", requireAuth, listDocuments);
+// Page-specific Cloudinary image rasterization endpoint
+router.get("/documents/:id/page-preview", requireAuth, getDocumentPagePreview);
+// Neutral preview endpoint (does not end in .pdf to avoid IDM URL pattern matching)
+router.get("/documents/:id/preview-stream", requireAuth, streamDocumentPdf);
+router.get("/documents/:id/view-pdf", requireAuth, streamDocumentPdf);
 router.delete("/documents/:id", requireAuth, deleteDocument);
 
 export default router;

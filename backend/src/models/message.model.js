@@ -9,8 +9,26 @@ const citationSchema = new mongoose.Schema(
     fileName: {
       type: String,
     },
+    documentName: {
+      type: String,
+    },
+    pageNumber: {
+      type: Number,
+      default: 1,
+    },
     textSnippet: {
       type: String,
+    },
+    snippet: {
+      type: String,
+    },
+    similarityScore: {
+      type: Number,
+      default: 0.85,
+    },
+    score: {
+      type: Number,
+      default: 0.85,
     },
   },
   { _id: false },
