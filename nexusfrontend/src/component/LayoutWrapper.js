@@ -20,7 +20,7 @@ export default function LayoutWrapper({ children }) {
   }, [hydrateSession, applyCssVariables, palette]);
 
   const isDashboard =
-    pathname.startsWith("/dashboard") || pathname.startsWith("/auth/login");
+    pathname.startsWith("/dashboard") || pathname.startsWith("/auth");
 
   return (
     <SmoothScrollProvider>

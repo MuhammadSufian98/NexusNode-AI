@@ -88,7 +88,7 @@ export default function Dashboard() {
   // Auth routing guard
   useEffect(() => {
     if (authChecked && !isAuthenticated) {
-      router.replace("/auth");
+      router.replace("/auth/login");
     }
   }, [authChecked, isAuthenticated, router]);
 
@@ -120,7 +120,7 @@ export default function Dashboard() {
 
   const handleSignOut = async () => {
     await logout();
-    router.push("/auth");
+    router.push("/auth/login");
   };
 
   // Clean, human-friendly titles
