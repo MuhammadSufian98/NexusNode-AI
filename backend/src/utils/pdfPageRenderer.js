@@ -1,5 +1,5 @@
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { createCanvas } from "@napi-rs/canvas";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
@@ -7,9 +7,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Resolve standard font and CMap directories bundled with pdfjs-dist
+// In Windows, pdfjs-dist strictly requires file:/// URLs with forward slashes and trailing slashes
 const PDFJS_DIST_PATH = path.resolve(__dirname, "../../node_modules/pdfjs-dist");
-const STANDARD_FONTS_PATH = path.join(PDFJS_DIST_PATH, "standard_fonts") + path.sep;
-const CMAPS_PATH = path.join(PDFJS_DIST_PATH, "cmaps") + path.sep;
+
+const cMapPath = path.resolve(PDFJS_DIST_PATH, "cmaps");
+let cMapUrl = pathToFileURL(cMapPath).href;
+if (!cMapUrl.endsWith("/")) cMapUrl += "/";
+
+const standardFontPath = path.resolve(PDFJS_DIST_PATH, "standard_fonts");
+let standardFontDataUrl = pathToFileURL(standardFontPath).href;
+if (!standardFontDataUrl.endsWith("/")) standardFontDataUrl += "/";
 
 /**
  * Renders a specific page of a PDF buffer into a high-clarity JPEG image
@@ -24,9 +31,9 @@ export async function renderPdfPageToJpeg(pdfBuffer, pageNumber = 1, scale = 2.0
   // Supply CMap and standard font resources so all letters, math symbols, and glyphs render correctly
   const loadingTask = pdfjsLib.getDocument({
     data,
-    cMapUrl: CMAPS_PATH,
+    cMapUrl,
     cMapPacked: true,
-    standardFontDataUrl: STANDARD_FONTS_PATH,
+    standardFontDataUrl,
     useSystemFonts: true,
     isEvalSupported: false,
   });

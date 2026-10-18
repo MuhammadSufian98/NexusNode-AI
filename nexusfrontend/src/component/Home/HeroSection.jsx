@@ -90,17 +90,17 @@ export default function HeroSection() {
   });
 
   useEffect(() => {
-    let d1 = 0.12;
-    let d2 = 0.42;
-    let d3 = 0.65;
-    let d4 = 0.88;
+    let d1 = 0.10;
+    let d2 = 0.38;
+    let d3 = 0.62;
+    let d4 = 0.82;
 
     if (pathRef.current) {
       const totalLen = pathRef.current.getTotalLength();
       const getDistAtX = (targetX) => {
         let low = 0;
         let high = totalLen;
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 24; i++) {
           const mid = (low + high) * 0.5;
           const pt = pathRef.current.getPointAtLength(mid);
           if (pt.x < targetX) low = mid;
@@ -109,14 +109,14 @@ export default function HeroSection() {
         return (low + high) * 0.5;
       };
 
-      d1 = getDistAtX(160) / totalLen;
-      d2 = getDistAtX(600) / totalLen;
-      d3 = getDistAtX(920) / totalLen;
-      d4 = getDistAtX(1220) / totalLen;
+      d1 = getDistAtX(140) / totalLen;
+      d2 = getDistAtX(520) / totalLen;
+      d3 = getDistAtX(840) / totalLen;
+      d4 = getDistAtX(1160) / totalLen;
     }
 
     let animationFrame;
-    const CYCLE_DURATION = 11000;
+    const CYCLE_DURATION = 10000;
     let startTime = performance.now();
     let prevStates = "";
 
@@ -132,18 +132,17 @@ export default function HeroSection() {
       let head = 0;
       let tail = 0;
 
-      if (t < 0.55) {
-        head = t / 0.55;
+      if (t < 0.60) {
+        head = t / 0.60;
         tail = 0;
-      } else if (t < 0.75) {
+      } else if (t < 0.78) {
         head = 1;
         tail = 0;
       } else {
         head = 1;
-        tail = (t - 0.75) / 0.25;
+        tail = (t - 0.78) / 0.22;
       }
 
-      // 1. Direct DOM update for clipPath rect (Zero React reconciler cost)
       if (clipRectRef.current) {
         const xPos = tail * 1400;
         const wVal = Math.max(0, head - tail) * 1400;
@@ -151,15 +150,14 @@ export default function HeroSection() {
         clipRectRef.current.setAttribute("width", wVal.toFixed(1));
       }
 
-      // 2. Discrete state updates only when status changes
       const n1 = head >= d1 && tail < d1;
       const n2 = head >= d2 && tail < d2;
       const n3 = head >= d3 && tail < d3;
       const n4 = head >= d4 && tail < d4;
-      const s1 = head >= d2 + 0.03;
-      const s2 = head >= d2 + 0.07;
-      const s3 = head >= d2 + 0.11;
-      const s4 = head >= d2 + 0.15;
+      const s1 = head >= d2 + 0.02;
+      const s2 = head >= d2 + 0.05;
+      const s3 = head >= d2 + 0.08;
+      const s4 = head >= d2 + 0.11;
 
       const stateKey = `${n1}${n2}${n3}${n4}${s1}${s2}${s3}${s4}`;
       if (stateKey !== prevStates) {
@@ -196,10 +194,8 @@ export default function HeroSection() {
 
   return (
     <section className="relative w-full min-h-screen bg-[var(--color-canvas)]/40 text-[var(--color-text-primary)] overflow-hidden font-['PP_Neue_Montreal',Arial,sans-serif] pt-8 sm:pt-12 pb-20 sm:pb-24 select-none transition-colors duration-200">
-      {/* ========================================================================= */}
-      {/* 1. PROGRESSIVE FLOW PIPELINE (UNIFIED SVG COORDINATE SPACE) */}
-      {/* ========================================================================= */}
-      <div className="hidden lg:block relative w-full max-w-[1400px] mx-auto overflow-visible mb-6" style={{ contain: "paint" }}>
+      {/* 1. PROGRESSIVE FLOW PIPELINE */}
+      <div className="hidden lg:block relative w-full max-w-[1400px] mx-auto overflow-visible mb-6" style={{ contain: "layout style" }}>
         <svg viewBox="0 0 1400 340" shapeRendering="geometricPrecision" className="w-full h-auto overflow-visible pointer-events-none">
           <defs>
             <linearGradient
@@ -228,7 +224,7 @@ export default function HeroSection() {
           {/* BASE STATIC TRACK */}
           <path
             ref={pathRef}
-            d="M 0 44 L 460 44 C 505 44, 475 124, 520 124 L 1400 124"
+            d="M 0 44 L 420 44 C 470 44, 450 124, 500 124 L 1400 124"
             stroke="var(--color-border)"
             strokeWidth="2.5"
             fill="none"
@@ -236,7 +232,7 @@ export default function HeroSection() {
 
           {/* PROGRESSIVE COLORED STROKE */}
           <path
-            d="M 0 44 L 460 44 C 505 44, 475 124, 520 124 L 1400 124"
+            d="M 0 44 L 420 44 C 470 44, 450 124, 500 124 L 1400 124"
             stroke={`url(#grad-${gradId})`}
             strokeWidth="3.5"
             strokeLinecap="round"
@@ -244,21 +240,17 @@ export default function HeroSection() {
             clipPath={`url(#clip-${gradId})`}
           />
 
-          {/* ------------------------------------------------------------- */}
-          {/* NODE 1: ASK AGENT (x = 80, path y = 44) */}
-          {/* ------------------------------------------------------------- */}
+          {/* NODE 1: ASK AGENT (x = 70, path y = 44) */}
           <foreignObject
-            x="80"
+            x="70"
             y="28"
-            width="300"
-            height="280"
+            width="320"
+            height="290"
             className="overflow-visible pointer-events-auto"
           >
             <div className="flex flex-col items-start">
-              <motion.div
-                layout
-                transition={{ type: "spring", stiffness: 450, damping: 30 }}
-                className={`inline-flex items-center h-8 px-2 rounded-full border transition-all duration-300 transform-gpu will-change-transform ${
+              <div
+                className={`inline-flex items-center h-8 px-3 rounded-full border transition-[border-color,background-color,color,box-shadow] duration-200 transform-gpu ${
                   isNode1Active
                     ? "bg-[var(--color-surface)] border-[var(--color-main)] text-[var(--color-main)] shadow-md shadow-[var(--color-glow)]"
                     : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)]"
@@ -266,78 +258,67 @@ export default function HeroSection() {
               >
                 <Sparkles
                   size={13}
-                  className={`shrink-0 transition-colors ${
+                  className={`shrink-0 transition-colors duration-150 ${
                     isNode1Active
-                      ? "text-[var(--color-main)] animate-pulse"
+                      ? "text-[var(--color-main)]"
                       : "text-[var(--color-text-muted)]"
                   }`}
                 />
-                <AnimatePresence>
+                <AnimatePresence initial={false}>
                   {isNode1Active && (
                     <motion.span
                       initial={{ opacity: 0, width: 0 }}
                       animate={{ opacity: 1, width: "auto" }}
                       exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pl-1.5 pr-1"
+                      transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                      className="text-xs font-semibold tracking-wide uppercase whitespace-nowrap overflow-hidden pl-2 pr-1"
                     >
                       Ask Agent
                     </motion.span>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
 
-              <div className="mt-4 w-64 h-[120px]">
+              <div className="mt-4 w-72 h-[130px]">
                 <AnimatePresence>
                   {isNode1Active && (
                     <motion.div
                       initial={{
                         opacity: 0,
-                        y: -12,
-                        scale: 0.94,
+                        transform: "translateY(-10px) scale(0.96)",
                         filter: "blur(4px)",
                       }}
                       animate={{
                         opacity: 1,
-                        y: 0,
-                        scale: 1,
+                        transform: "translateY(0px) scale(1)",
                         filter: "blur(0px)",
                       }}
                       exit={{
                         opacity: 0,
-                        y: -8,
-                        scale: 0.96,
-                        filter: "blur(4px)",
+                        transform: "translateY(-6px) scale(0.97)",
+                        filter: "blur(2px)",
                       }}
-                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                      className="relative p-3.5 rounded-2xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-main)]/30 shadow-[0_12px_32px_-8px_var(--color-glow),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full transform-gpu will-change-transform"
+                      style={{ transformOrigin: "top left" }}
+                      transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                      className="relative p-4 rounded-2xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-main)]/20 shadow-xl flex flex-col justify-between h-full transform-gpu will-change-transform"
                     >
-                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-[var(--color-surface)] border-t border-l border-[var(--color-main)]/30 rotate-45" />
-                      <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border)]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-main)] animate-pulse" />
-                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--color-text-muted)]">
-                            Prompt Input
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-mono text-[var(--color-main)] bg-[var(--color-main)]/10 px-1.5 py-0.5 rounded-md border border-[var(--color-main)]/20 font-bold">
-                          Ch. 4 • Memory
+                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-[var(--color-surface)] border-t border-l border-[var(--color-main)]/20 rotate-45" />
+                      <div className="flex items-center justify-between pb-2.5 border-b border-[var(--color-border)]">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-main)]">
+                          Prompt Input
+                        </span>
+                        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                          Memory Layout
                         </span>
                       </div>
-                      <p className="text-[12px] text-[var(--color-text-primary)] leading-snug font-medium my-auto pr-1">
-                        Synthesize Chapter 4 memory layout and generate an
-                        active recall exam card.
+                      <p className="text-sm text-[var(--color-text-primary)] leading-relaxed font-normal my-auto">
+                        Synthesize chapter memory structure and build an active recall exam card.
                       </p>
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-[9px] font-mono text-[var(--color-text-muted)]">
-                          Target:{" "}
-                          <strong className="text-[var(--color-text-primary)] font-semibold">
-                            waitegoos.pdf
-                          </strong>
+                      <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)] text-xs">
+                        <span className="text-[var(--color-text-muted)]">
+                          Target: <span className="text-[var(--color-text-primary)] font-medium">waitegoos.pdf</span>
                         </span>
-                        <span className="h-6 w-6 rounded-lg bg-linear-to-r from-[var(--color-main)] via-[var(--color-mid)] to-[var(--color-highlight)] text-white flex items-center justify-center shadow-xs">
-                          <ArrowUpRight size={13} strokeWidth={2.5} />
-                        </span>
+                        <ArrowUpRight size={14} className="text-[var(--color-main)]" />
                       </div>
                     </motion.div>
                   )}
@@ -346,21 +327,17 @@ export default function HeroSection() {
             </div>
           </foreignObject>
 
-          {/* ------------------------------------------------------------- */}
-          {/* NODE 2: AGENT WORKFLOW (x = 540, path y = 124) */}
-          {/* ------------------------------------------------------------- */}
+          {/* NODE 2: AGENT WORKFLOW (x = 480, path y = 124) */}
           <foreignObject
-            x="540"
+            x="480"
             y="108"
-            width="300"
-            height="280"
+            width="320"
+            height="290"
             className="overflow-visible pointer-events-auto"
           >
             <div className="flex flex-col items-start">
-              <motion.div
-                layout
-                transition={{ type: "spring", stiffness: 450, damping: 30 }}
-                className={`inline-flex items-center h-8 px-2 rounded-full border transition-all duration-300 transform-gpu will-change-transform ${
+              <div
+                className={`inline-flex items-center h-8 px-3 rounded-full border transition-[border-color,background-color,color,box-shadow] duration-200 transform-gpu ${
                   isNode2Active
                     ? "bg-[var(--color-surface)] border-[var(--color-mid)] text-[var(--color-mid)] shadow-md shadow-[var(--color-glow)]"
                     : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)]"
@@ -368,166 +345,71 @@ export default function HeroSection() {
               >
                 <Sparkles
                   size={13}
-                  className={`shrink-0 transition-colors ${
+                  className={`shrink-0 transition-colors duration-150 ${
                     isNode2Active
-                      ? "text-[var(--color-mid)] animate-pulse"
+                      ? "text-[var(--color-mid)]"
                       : "text-[var(--color-text-muted)]"
                   }`}
                 />
-                <AnimatePresence>
+                <AnimatePresence initial={false}>
                   {isNode2Active && (
                     <motion.span
                       initial={{ opacity: 0, width: 0 }}
                       animate={{ opacity: 1, width: "auto" }}
                       exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pl-1.5 pr-1"
+                      transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                      className="text-xs font-semibold tracking-wide uppercase whitespace-nowrap overflow-hidden pl-2 pr-1"
                     >
                       Agent Workflow
                     </motion.span>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
 
-              <div className="mt-4 w-60 h-[140px]">
+              <div className="mt-4 w-72 h-[150px]">
                 <AnimatePresence>
                   {isNode2Active && (
                     <motion.div
                       initial={{
                         opacity: 0,
-                        y: -12,
-                        scale: 0.94,
+                        transform: "translateY(-10px) scale(0.96)",
                         filter: "blur(4px)",
                       }}
                       animate={{
                         opacity: 1,
-                        y: 0,
-                        scale: 1,
+                        transform: "translateY(0px) scale(1)",
                         filter: "blur(0px)",
                       }}
                       exit={{
                         opacity: 0,
-                        y: -8,
-                        scale: 0.96,
-                        filter: "blur(4px)",
+                        transform: "translateY(-6px) scale(0.97)",
+                        filter: "blur(2px)",
                       }}
-                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                      className="relative p-3.5 rounded-2xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-mid)]/30 shadow-[0_12px_32px_-8px_var(--color-glow),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full transform-gpu will-change-transform"
+                      style={{ transformOrigin: "top left" }}
+                      transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                      className="relative p-4 rounded-2xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-mid)]/20 shadow-xl flex flex-col justify-between h-full transform-gpu will-change-transform"
                     >
-                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-[var(--color-surface)] border-t border-l border-[var(--color-mid)]/30 rotate-45" />
-                      <div className="flex items-center justify-between pb-1.5 border-b border-[var(--color-border)]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-mid)] animate-pulse" />
-                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--color-text-muted)]">
-                            Pipeline Run
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-mono font-bold text-[var(--color-mid)] bg-[var(--color-mid)]/10 px-1.5 py-0.5 rounded-md border border-[var(--color-mid)]/20">
-                          {step4Done ? "4/4 Complete" : "Processing"}
+                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-[var(--color-surface)] border-t border-l border-[var(--color-mid)]/20 rotate-45" />
+                      <div className="flex items-center justify-between pb-2.5 border-b border-[var(--color-border)]">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-mid)]">
+                          Pipeline Run
+                        </span>
+                        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                          {step4Done ? "Complete" : "Processing"}
                         </span>
                       </div>
-                      <div className="space-y-1 text-[10px] font-mono">
-                        <div
-                          className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md ${step1Done ? "bg-[var(--color-canvas)]/80" : ""}`}
-                        >
-                          {step1Done ? (
-                            <Check
-                              size={11}
-                              className="text-[var(--color-success)] font-bold"
-                            />
-                          ) : (
-                            <Loader2
-                              size={11}
-                              className="animate-spin text-[var(--color-mid)]"
-                            />
-                          )}
-                          <span
-                            className={
-                              step1Done
-                                ? "text-[var(--color-text-primary)] font-bold"
-                                : "text-[var(--color-text-muted)]"
-                            }
-                          >
-                            EXTRACT IN-MEMORY PDF
-                          </span>
+                      <div className="space-y-2 py-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className={step1Done ? "text-[var(--color-text-primary)] font-medium" : "text-[var(--color-text-muted)]"}>Extract Document Context</span>
+                          {step1Done && <Check size={14} className="text-[var(--color-mid)]" />}
                         </div>
-                        <div
-                          className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md ${step2Done ? "bg-[var(--color-canvas)]/80" : ""}`}
-                        >
-                          {step2Done ? (
-                            <Check
-                              size={11}
-                              className="text-[var(--color-success)] font-bold"
-                            />
-                          ) : step1Done ? (
-                            <Loader2
-                              size={11}
-                              className="animate-spin text-[var(--color-mid)]"
-                            />
-                          ) : (
-                            <span className="w-2 h-2 rounded-full border border-[var(--color-border)]" />
-                          )}
-                          <span
-                            className={
-                              step2Done
-                                ? "text-[var(--color-text-primary)] font-bold"
-                                : "text-[var(--color-text-muted)]"
-                            }
-                          >
-                            REDACT PII PATTERNS
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <span className={step2Done ? "text-[var(--color-text-primary)] font-medium" : "text-[var(--color-text-muted)]"}>Redact Patterns</span>
+                          {step2Done && <Check size={14} className="text-[var(--color-mid)]" />}
                         </div>
-                        <div
-                          className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md ${step3Done ? "bg-[var(--color-canvas)]/80" : ""}`}
-                        >
-                          {step3Done ? (
-                            <Check
-                              size={11}
-                              className="text-[var(--color-success)] font-bold"
-                            />
-                          ) : step2Done ? (
-                            <Loader2
-                              size={11}
-                              className="animate-spin text-[var(--color-mid)]"
-                            />
-                          ) : (
-                            <span className="w-2 h-2 rounded-full border border-[var(--color-border)]" />
-                          )}
-                          <span
-                            className={
-                              step3Done
-                                ? "text-[var(--color-text-primary)] font-bold"
-                                : "text-[var(--color-text-muted)]"
-                            }
-                          >
-                            COSINE VECTOR CHUNKING
-                          </span>
-                        </div>
-                        <div
-                          className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-md ${step4Done ? "bg-[var(--color-canvas)]/80" : ""}`}
-                        >
-                          {step4Done ? (
-                            <Check
-                              size={11}
-                              className="text-[var(--color-success)] font-bold"
-                            />
-                          ) : step3Done ? (
-                            <Loader2
-                              size={11}
-                              className="animate-spin text-[var(--color-mid)]"
-                            />
-                          ) : (
-                            <span className="w-2 h-2 rounded-full border border-[var(--color-border)]" />
-                          )}
-                          <span
-                            className={
-                              step4Done
-                                ? "text-[var(--color-text-primary)] font-bold"
-                                : "text-[var(--color-text-muted)]"
-                            }
-                          >
-                            ISOLATE TOP-K CITATIONS
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <span className={step4Done ? "text-[var(--color-text-primary)] font-medium" : "text-[var(--color-text-muted)]"}>Vector Chunking & Citations</span>
+                          {step4Done && <Check size={14} className="text-[var(--color-mid)]" />}
                         </div>
                       </div>
                     </motion.div>
@@ -537,21 +419,17 @@ export default function HeroSection() {
             </div>
           </foreignObject>
 
-          {/* ------------------------------------------------------------- */}
-          {/* NODE 3: AI DECISIONING (x = 860, path y = 124) */}
-          {/* ------------------------------------------------------------- */}
+          {/* NODE 3: AI DECISIONING (x = 790, path y = 124) */}
           <foreignObject
-            x="860"
+            x="790"
             y="108"
-            width="280"
-            height="280"
+            width="320"
+            height="290"
             className="overflow-visible pointer-events-auto"
           >
             <div className="flex flex-col items-start">
-              <motion.div
-                layout
-                transition={{ type: "spring", stiffness: 450, damping: 30 }}
-                className={`inline-flex items-center h-8 px-2 rounded-full border transition-all duration-300 transform-gpu will-change-transform ${
+              <div
+                className={`inline-flex items-center h-8 px-3 rounded-full border transition-[border-color,background-color,color,box-shadow] duration-200 transform-gpu ${
                   isNode3Active
                     ? "bg-[var(--color-surface)] border-[var(--color-highlight)] text-[var(--color-highlight)] shadow-md shadow-[var(--color-glow)]"
                     : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)]"
@@ -559,88 +437,71 @@ export default function HeroSection() {
               >
                 <Sparkles
                   size={13}
-                  className={`shrink-0 transition-colors ${
+                  className={`shrink-0 transition-colors duration-150 ${
                     isNode3Active
-                      ? "text-[var(--color-highlight)] animate-pulse"
+                      ? "text-[var(--color-highlight)]"
                       : "text-[var(--color-text-muted)]"
                   }`}
                 />
-                <AnimatePresence>
+                <AnimatePresence initial={false}>
                   {isNode3Active && (
                     <motion.span
                       initial={{ opacity: 0, width: 0 }}
                       animate={{ opacity: 1, width: "auto" }}
                       exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pl-1.5 pr-1"
+                      transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                      className="text-xs font-semibold tracking-wide uppercase whitespace-nowrap overflow-hidden pl-2 pr-1"
                     >
                       AI Decisioning
                     </motion.span>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
 
-              <div className="mt-4 w-56 h-[140px]">
+              <div className="mt-4 w-72 h-[150px]">
                 <AnimatePresence>
                   {isNode3Active && (
                     <motion.div
                       initial={{
                         opacity: 0,
-                        y: -12,
-                        scale: 0.94,
+                        transform: "translateY(-10px) scale(0.96)",
                         filter: "blur(4px)",
                       }}
                       animate={{
                         opacity: 1,
-                        y: 0,
-                        scale: 1,
+                        transform: "translateY(0px) scale(1)",
                         filter: "blur(0px)",
                       }}
                       exit={{
                         opacity: 0,
-                        y: -8,
-                        scale: 0.96,
-                        filter: "blur(4px)",
+                        transform: "translateY(-6px) scale(0.97)",
+                        filter: "blur(2px)",
                       }}
-                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                      className="relative p-3.5 rounded-2xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-highlight)]/30 shadow-[0_12px_32px_-8px_var(--color-glow),0_4px_16px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full transform-gpu will-change-transform"
+                      style={{ transformOrigin: "top left" }}
+                      transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                      className="relative p-4 rounded-2xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-highlight)]/20 shadow-xl flex flex-col justify-between h-full transform-gpu will-change-transform"
                     >
-                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-[var(--color-surface)] border-t border-l border-[var(--color-highlight)]/30 rotate-45" />
-                      <div className="flex items-center justify-between pb-1.5 border-b border-[var(--color-border)]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-highlight)] animate-pulse" />
-                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--color-text-muted)]">
-                            Decision Proof
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-mono font-bold text-[var(--color-highlight)] bg-[var(--color-highlight)]/10 px-1.5 py-0.5 rounded-md border border-[var(--color-highlight)]/20">
-                          Ranked #1
+                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-[var(--color-surface)] border-t border-l border-[var(--color-highlight)]/20 rotate-45" />
+                      <div className="flex items-center justify-between pb-2.5 border-b border-[var(--color-border)]">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-highlight)]">
+                          Decision Metrics
+                        </span>
+                        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                          Verified
                         </span>
                       </div>
-                      <div className="space-y-1.5 text-[10px] font-mono">
-                        <div className="p-1.5 rounded-lg bg-[var(--color-canvas)] border border-[var(--color-border)] flex items-center justify-between">
-                          <span className="text-[var(--color-text-muted)] text-[9px]">
-                            Chunk Match
-                          </span>
-                          <span className="text-[var(--color-highlight)] font-bold">
-                            0.941 Sim
-                          </span>
+                      <div className="space-y-2 py-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[var(--color-text-muted)]">Chunk Match Similarity</span>
+                          <span className="font-semibold text-[var(--color-highlight)]">0.941</span>
                         </div>
-                        <div className="p-1.5 rounded-lg bg-[var(--color-canvas)] border border-[var(--color-border)] flex items-center justify-between">
-                          <span className="text-[var(--color-text-muted)] text-[9px]">
-                            Confidence
-                          </span>
-                          <span className="text-[var(--color-success)] font-bold">
-                            0% Hallucination
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[var(--color-text-muted)]">Confidence Score</span>
+                          <span className="font-semibold text-[var(--color-text-primary)]">High</span>
                         </div>
-                        <div className="p-1.5 rounded-lg bg-[var(--color-canvas)] border border-[var(--color-border)] flex items-center justify-between">
-                          <span className="text-[var(--color-text-muted)] text-[9px]">
-                            Engine
-                          </span>
-                          <span className="text-[var(--color-main)] font-bold">
-                            Groq 70B
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[var(--color-text-muted)]">Engine Model</span>
+                          <span className="font-semibold text-[var(--color-text-primary)]">Groq 70B</span>
                         </div>
                       </div>
                     </motion.div>
@@ -650,21 +511,17 @@ export default function HeroSection() {
             </div>
           </foreignObject>
 
-          {/* ------------------------------------------------------------- */}
-          {/* NODE 4: PERSONALIZED OUTPUT (x = 1140, path y = 124) */}
-          {/* ------------------------------------------------------------- */}
+          {/* NODE 4: PERSONALIZED OUTPUT (x = 1070, path y = 124) */}
           <foreignObject
-            x="1110"
+            x="1070"
             y="108"
-            width="310"
+            width="320"
             height="320"
             className="overflow-visible pointer-events-auto"
           >
             <div className="flex flex-col items-start">
-              <motion.div
-                layout
-                transition={{ type: "spring", stiffness: 450, damping: 30 }}
-                className={`inline-flex items-center h-8 px-2 rounded-full border transition-all duration-300 transform-gpu will-change-transform ${
+              <div
+                className={`inline-flex items-center h-8 px-3 rounded-full border transition-[border-color,background-color,color,box-shadow] duration-200 transform-gpu ${
                   isNode4Active
                     ? "bg-[var(--color-surface)] border-[var(--color-main)] text-[var(--color-main)] shadow-md shadow-[var(--color-glow)]"
                     : "bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)]"
@@ -672,26 +529,26 @@ export default function HeroSection() {
               >
                 <Sparkles
                   size={13}
-                  className={`shrink-0 transition-colors ${
+                  className={`shrink-0 transition-colors duration-150 ${
                     isNode4Active
-                      ? "text-[var(--color-main)] animate-pulse"
+                      ? "text-[var(--color-main)]"
                       : "text-[var(--color-text-muted)]"
                   }`}
                 />
-                <AnimatePresence>
+                <AnimatePresence initial={false}>
                   {isNode4Active && (
                     <motion.span
                       initial={{ opacity: 0, width: 0 }}
                       animate={{ opacity: 1, width: "auto" }}
                       exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-[11px] font-bold tracking-wider uppercase whitespace-nowrap overflow-hidden pl-1.5 pr-1"
+                      transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                      className="text-xs font-semibold tracking-wide uppercase whitespace-nowrap overflow-hidden pl-2 pr-1"
                     >
                       Personalized Output
                     </motion.span>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
 
               <div className="mt-4 w-72">
                 <AnimatePresence>
@@ -699,72 +556,51 @@ export default function HeroSection() {
                     <motion.div
                       initial={{
                         opacity: 0,
-                        y: -14,
-                        scale: 0.93,
-                        filter: "blur(5px)",
+                        transform: "translateY(-10px) scale(0.96)",
+                        filter: "blur(4px)",
                       }}
                       animate={{
                         opacity: 1,
-                        y: 0,
-                        scale: 1,
+                        transform: "translateY(0px) scale(1)",
                         filter: "blur(0px)",
                       }}
                       exit={{
                         opacity: 0,
-                        y: -8,
-                        scale: 0.96,
-                        filter: "blur(4px)",
+                        transform: "translateY(-6px) scale(0.97)",
+                        filter: "blur(2px)",
                       }}
-                      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-                      className="relative p-3.5 rounded-3xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-main)]/30 shadow-[0_20px_40px_-12px_var(--color-glow),0_6px_20px_-6px_rgba(0,0,0,0.06)] flex flex-col gap-2.5 transform-gpu will-change-transform"
+                      style={{ transformOrigin: "top left" }}
+                      transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                      className="relative p-4 rounded-2xl bg-[var(--color-surface)]/95 backdrop-blur-xl border border-[var(--color-main)]/20 shadow-xl flex flex-col gap-3 transform-gpu will-change-transform"
                     >
-                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-[var(--color-surface)] border-t border-l border-[var(--color-main)]/30 rotate-45" />
-                      <div className="flex items-center justify-between pb-1.5 border-b border-[var(--color-border)]">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-[var(--color-main)] animate-pulse" />
-                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[var(--color-text-muted)]">
-                            Synthesized Artifact
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-mono font-bold text-[var(--color-main)] bg-[var(--color-main)]/10 px-2 py-0.5 rounded-md border border-[var(--color-main)]/20">
-                          Card #402
+                      <div className="absolute -top-1.5 left-6 w-3 h-3 bg-[var(--color-surface)] border-t border-l border-[var(--color-main)]/20 rotate-45" />
+                      <div className="flex items-center justify-between pb-2.5 border-b border-[var(--color-border)]">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-main)]">
+                          Synthesized Artifact
+                        </span>
+                        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                          Card Ready
                         </span>
                       </div>
 
-                      <div className="relative h-28 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-slate-800 p-3 flex flex-col justify-between">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider bg-black/60 text-white backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10">
-                            Exam Recall Card
-                          </span>
-                          <span className="text-[9px] font-mono font-semibold text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                            0% Hallucination
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-white tracking-tight leading-tight drop-shadow-sm">
-                            Row-Major Offset Mapping
-                          </p>
-                          <p className="text-[9px] text-slate-400 font-mono mt-0.5">
-                            Compiler Construction • Page 137
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="p-2 rounded-xl bg-[var(--color-canvas)] border border-[var(--color-border)] font-mono text-[10px] text-[var(--color-text-primary)] flex items-center justify-between">
-                        <span className="text-[var(--color-text-muted)] text-[9px] uppercase tracking-wider">
-                          Formula
+                      <div className="p-3.5 rounded-xl bg-[var(--color-canvas)] border border-[var(--color-border)] flex flex-col gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-main)]">
+                          Exam Recall Card
                         </span>
-                        <span className="font-bold text-[var(--color-mid)]">
-                          disp = sum((i_j - low_j) * d_j)
-                        </span>
+                        <p className="text-xs font-semibold text-[var(--color-text-primary)]">
+                          Row-Major Offset Mapping
+                        </p>
+                        <p className="text-[11px] text-[var(--color-text-muted)]">
+                          Compiler Construction • Page 137
+                        </p>
                       </div>
 
                       <button
                         onClick={() => router.push("/dashboard")}
-                        className="w-full py-2 px-3 rounded-xl bg-linear-to-r from-[var(--color-main)] via-[var(--color-mid)] to-[var(--color-highlight)] hover:opacity-95 text-white font-bold text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md shadow-[var(--color-glow)] active:scale-[0.98] cursor-pointer"
+                        className="w-full py-2.5 px-3 rounded-xl bg-linear-to-r from-[var(--color-main)] via-[var(--color-mid)] to-[var(--color-highlight)] hover:opacity-95 active:scale-[0.98] text-white font-semibold text-xs tracking-wide transition-all duration-150 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                       >
-                        <span>Inspect In Workspace</span>
-                        <ArrowUpRight size={13} strokeWidth={2.5} />
+                        <span>Inspect in Workspace</span>
+                        <ArrowUpRight size={14} strokeWidth={2.5} />
                       </button>
                     </motion.div>
                   )}
@@ -775,9 +611,7 @@ export default function HeroSection() {
         </svg>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MOBILE / TABLET HORIZONTAL STEPPER (< 1024px) */}
-      {/* ========================================================================= */}
+      {/* Mobile & Tablet Stepper */}
       <div className="block lg:hidden w-full px-6 mb-8 overflow-x-auto no-scrollbar">
         <div className="flex gap-4 min-w-[720px] pb-2">
           <div className="flex-1 p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xs flex flex-col justify-between">
@@ -818,9 +652,6 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 2. EDITORIAL HERO HEADLINE & ACTIONS */}
-      {/* ========================================================================= */}
       <div className="max-w-[1360px] mx-auto px-6 sm:px-10 mt-2 sm:mt-6">
         <div className="max-w-3xl">
           <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-medium tracking-tight text-[var(--color-text-primary)] leading-[1.08] sm:leading-[1.05]">
@@ -864,9 +695,6 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* 3. ACADEMIC & TRUST FOUNDATIONS STRIP */}
-        {/* ========================================================================= */}
         <div className="mt-16 sm:mt-24 pt-6 relative overflow-hidden select-none">
           {/* Edge-to-Edge Fog Masks */}
           <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-48 bg-linear-to-r from-[var(--color-canvas)] via-[var(--color-canvas)]/80 to-transparent z-10 pointer-events-none" />

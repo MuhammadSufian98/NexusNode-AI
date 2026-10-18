@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,16 +14,23 @@ import {
   Loader2,
   AlertCircle,
   FileText,
-  ArrowDownToLine,
+  ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import API_BASE_URL, { API_BASE_URL as NamedApiBaseUrl } from "@/lib/apiBaseUrl";
 
-const MAX_PREVIEW_PAGES = 80;
-
 const slideVariants = {
-  enter: (dir) => ({ x: dir > 0 ? 80 : -80, opacity: 0 }),
-  center: { x: 0, opacity: 1, transition: { duration: 0.18, ease: "easeOut" } },
-  exit: (dir) => ({ x: dir < 0 ? 80 : -80, opacity: 0, transition: { duration: 0.15, ease: "easeIn" } }),
+  enter: (dir) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: { duration: 0.16, ease: [0.23, 1, 0.32, 1] },
+  },
+  exit: (dir) => ({
+    x: dir < 0 ? 60 : -60,
+    opacity: 0,
+    transition: { duration: 0.12, ease: "easeIn" },
+  }),
 };
 
 export default function PdfViewer({
@@ -42,30 +49,23 @@ export default function PdfViewer({
   const [scale, setScale] = useState(1.0);
   const [rotation, setRotation] = useState(0);
   const [imageLoading, setImageLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState(null);
+  const [hasError, setHasError] = useState(false);
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
-  // Large document threshold check
-  const isTooLarge = totalPages > MAX_PREVIEW_PAGES;
+  const abortControllerRef = useRef(null);
+  const blobUrlRef = useRef(null);
 
   const baseUrl = (API_BASE_URL || NamedApiBaseUrl || "http://localhost:5000").replace(/\/$/, "");
 
-  // Generate target image URL directly
-  const currentImageUrl = useMemo(() => {
-    if (!documentId) return "";
-    return `${baseUrl}/api/rag/documents/${documentId}/page-preview?page=${pageNumber}`;
-  }, [baseUrl, documentId, pageNumber]);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
+  // Update totalPages when prop updates
   useEffect(() => {
     if (pageCount && pageCount > 0) {
       setTotalPages(pageCount);
     }
   }, [pageCount]);
 
+  // Sync initialPage when prop changes
   useEffect(() => {
     if (initialPage) {
       setPageNumber(initialPage);
@@ -73,22 +73,112 @@ export default function PdfViewer({
     }
   }, [initialPage]);
 
-  // Reset loading whenever pageNumber or documentId changes
+  // Mount detection for React portal
   useEffect(() => {
-    if (isOpen && documentId && !isTooLarge) {
-      setImageLoading(true);
-      setErrorMsg(null);
-    }
-  }, [isOpen, documentId, pageNumber, isTooLarge]);
+    setMounted(true);
+    return () => {
+      setMounted(false);
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, []);
 
-  const paginate = (newDirection) => {
-    const target = pageNumber + newDirection;
-    if (target >= 1 && target <= totalPages) {
-      setDirection(newDirection);
-      setPageNumber(target);
-      setPageInput(String(target));
+  // Fetch page preview with active AbortController cancellation
+  useEffect(() => {
+    if (!isOpen || !documentId) return;
+
+    // Abort previous in-flight task on rapid page changes
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-  };
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    let isSubscribed = true;
+    setImageLoading(true);
+    setHasError(false);
+
+    const targetUrl = `${baseUrl}/api/rag/documents/${documentId}/page-preview?page=${pageNumber}`;
+
+    fetch(targetUrl, {
+      method: "GET",
+      credentials: "include",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Render failed with status: ${response.status}`);
+        }
+
+        // Dynamically extract page count if server reported it
+        const totalHeader = response.headers.get("x-total-pages");
+        if (totalHeader) {
+          const parsed = parseInt(totalHeader, 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            setTotalPages((prev) => Math.max(prev, parsed));
+          }
+        }
+
+        return response.blob();
+      })
+      .then((blob) => {
+        if (!isSubscribed) return;
+
+        // Revoke previous blob URL to avoid memory leak
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+        }
+
+        const newBlobUrl = URL.createObjectURL(blob);
+        blobUrlRef.current = newBlobUrl;
+        setBlobUrl(newBlobUrl);
+        setImageLoading(false);
+        setHasError(false);
+      })
+      .catch((err) => {
+        if (err.name === "AbortError" || !isSubscribed) {
+          // Normal cancellation on rapid pagination
+          return;
+        }
+        console.warn("[PdfViewer] Page render request failed:", err.message);
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+          blobUrlRef.current = null;
+        }
+        setBlobUrl(null);
+        setImageLoading(false);
+        setHasError(true);
+      });
+
+    return () => {
+      isSubscribed = false;
+      controller.abort();
+    };
+  }, [isOpen, documentId, pageNumber, retryTrigger, baseUrl]);
+
+  // Clean up blob on modal close
+  useEffect(() => {
+    if (!isOpen && blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+      setBlobUrl(null);
+    }
+  }, [isOpen]);
+
+  const paginate = useCallback(
+    (newDirection) => {
+      const target = pageNumber + newDirection;
+      if (target >= 1 && target <= totalPages) {
+        setDirection(newDirection);
+        setPageNumber(target);
+        setPageInput(String(target));
+      }
+    },
+    [pageNumber, totalPages]
+  );
 
   const handlePageInputSubmit = () => {
     const parsed = parseInt(pageInput, 10);
@@ -120,11 +210,38 @@ export default function PdfViewer({
     document.body.removeChild(a);
   };
 
+  const handleRetry = () => {
+    setRetryTrigger((prev) => prev + 1);
+  };
+
+  // Keyboard navigation (ArrowLeft / ArrowRight / Escape)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        paginate(-1);
+      } else if (e.key === "ArrowRight") {
+        paginate(1);
+      } else if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, paginate, onClose]);
+
   if (!isOpen || !mounted) return null;
+
+  const downloadEndpoint = `${baseUrl}/api/rag/documents/${documentId}/preview-stream`;
 
   const modalNode = (
     <div
-      className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-5 bg-slate-950/60 backdrop-blur-md select-none"
+      className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-5 bg-slate-950/65 backdrop-blur-md select-none"
       onClick={(e) => {
         e.stopPropagation();
         if (e.target === e.currentTarget) onClose();
@@ -143,89 +260,92 @@ export default function PdfViewer({
             <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate" title={fileName}>
               {fileName || "Document Preview"}
             </h3>
+            {totalPages > 80 && (
+              <span className="hidden md:inline font-mono text-[9px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">
+                Large Doc ({totalPages}p)
+              </span>
+            )}
           </div>
 
-          {/* Navigation Controls */}
-          {!isTooLarge && (
-            <div className="hidden sm:flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => paginate(-1)}
-                disabled={pageNumber <= 1}
-                className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                title="Previous Page"
-              >
-                <ChevronLeft size={14} />
-              </button>
+          {/* Navigation & Zoom Controls */}
+          <div className="hidden sm:flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-xl shadow-xs">
+            <button
+              type="button"
+              onClick={() => paginate(-1)}
+              disabled={pageNumber <= 1}
+              className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30 cursor-pointer active:scale-[0.97] transition-transform"
+              title="Previous Page (Left Arrow)"
+            >
+              <ChevronLeft size={14} />
+            </button>
 
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  value={pageInput}
-                  onChange={(e) => setPageInput(e.target.value)}
-                  onBlur={handlePageInputSubmit}
-                  onKeyDown={(e) => e.key === "Enter" && handlePageInputSubmit()}
-                  className="w-9 text-center font-mono text-[11px] font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded py-0.5 outline-none focus:border-rose-400"
-                />
-                <span className="font-mono text-[11px] font-semibold text-slate-400">
-                  / {totalPages}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => paginate(1)}
-                disabled={pageNumber >= totalPages}
-                className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
-                title="Next Page"
-              >
-                <ChevronRight size={14} />
-              </button>
-
-              <div className="w-px h-3.5 bg-slate-200 mx-1" />
-
-              <button
-                type="button"
-                onClick={() => setScale((s) => Math.max(0.6, s - 0.15))}
-                className="p-1 text-slate-500 hover:text-slate-800 cursor-pointer"
-                title="Zoom Out"
-              >
-                <ZoomOut size={13} />
-              </button>
-
-              <span className="font-mono text-[10px] text-slate-400 min-w-8 text-center">
-                {Math.round(scale * 100)}%
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                onBlur={handlePageInputSubmit}
+                onKeyDown={(e) => e.key === "Enter" && handlePageInputSubmit()}
+                className="w-10 text-center font-mono text-[11px] font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded py-0.5 outline-none focus:border-rose-400"
+              />
+              <span className="font-mono text-[11px] font-semibold text-slate-400">
+                / {totalPages}
               </span>
-
-              <button
-                type="button"
-                onClick={() => setScale((s) => Math.min(2.0, s + 0.15))}
-                className="p-1 text-slate-500 hover:text-slate-800 cursor-pointer"
-                title="Zoom In"
-              >
-                <ZoomIn size={13} />
-              </button>
-
-              <div className="w-px h-3.5 bg-slate-200 mx-1" />
-
-              <button
-                type="button"
-                onClick={() => setRotation((r) => (r + 90) % 360)}
-                className="p-1 text-slate-500 hover:text-slate-800 cursor-pointer"
-                title="Rotate"
-              >
-                <RotateCw size={13} />
-              </button>
             </div>
-          )}
+
+            <button
+              type="button"
+              onClick={() => paginate(1)}
+              disabled={pageNumber >= totalPages}
+              className="p-1 text-slate-500 hover:text-slate-800 disabled:opacity-30 cursor-pointer active:scale-[0.97] transition-transform"
+              title="Next Page (Right Arrow)"
+            >
+              <ChevronRight size={14} />
+            </button>
+
+            <div className="w-px h-3.5 bg-slate-200 mx-1" />
+
+            <button
+              type="button"
+              onClick={() => setScale((s) => Math.max(0.6, s - 0.15))}
+              className="p-1 text-slate-500 hover:text-slate-800 cursor-pointer active:scale-[0.97] transition-transform"
+              title="Zoom Out"
+            >
+              <ZoomOut size={13} />
+            </button>
+
+            <span className="font-mono text-[10px] text-slate-400 min-w-8 text-center">
+              {Math.round(scale * 100)}%
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setScale((s) => Math.min(2.5, s + 0.15))}
+              className="p-1 text-slate-500 hover:text-slate-800 cursor-pointer active:scale-[0.97] transition-transform"
+              title="Zoom In"
+            >
+              <ZoomIn size={13} />
+            </button>
+
+            <div className="w-px h-3.5 bg-slate-200 mx-1" />
+
+            <button
+              type="button"
+              onClick={() => setRotation((r) => (r + 90) % 360)}
+              className="p-1 text-slate-500 hover:text-slate-800 cursor-pointer active:scale-[0.97] transition-transform"
+              title="Rotate 90°"
+            >
+              <RotateCw size={13} />
+            </button>
+          </div>
 
           {/* Action Buttons */}
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={handleDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl cursor-pointer"
-              title="Download File"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl cursor-pointer active:scale-[0.97] transition-all"
+              title="Download Original PDF"
             >
               <Download size={13} />
               <span className="hidden sm:inline">Download</span>
@@ -234,8 +354,8 @@ export default function PdfViewer({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl cursor-pointer"
-              title="Close"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl cursor-pointer active:scale-[0.97] transition-colors"
+              title="Close (Esc)"
             >
               <X size={16} />
             </button>
@@ -244,48 +364,63 @@ export default function PdfViewer({
 
         {/* Viewport Stage */}
         <div className="flex-1 w-full h-full overflow-hidden bg-[#F1F3F5] flex items-center justify-center relative p-4">
-          {imageLoading && !errorMsg && !isTooLarge && (
-            <div className="absolute z-10 flex flex-col items-center justify-center gap-2 bg-white/80 backdrop-blur-xs px-4 py-2.5 rounded-xl shadow-xs border border-slate-100">
-              <Loader2 size={20} className="animate-spin text-rose-600" />
-              <span className="text-xs font-mono text-slate-600">Rendering page {pageNumber}...</span>
+          {/* Loading Indicator */}
+          {imageLoading && !hasError && (
+            <div className="absolute z-20 flex flex-col items-center justify-center gap-2 bg-white/90 backdrop-blur-xs px-4 py-3 rounded-2xl shadow-sm border border-slate-200">
+              <Loader2 size={22} className="animate-spin text-rose-600" />
+              <span className="text-xs font-mono text-slate-700">Rendering page {pageNumber}...</span>
             </div>
           )}
 
-          {errorMsg && (
-            <div className="flex flex-col items-center justify-center gap-2 p-6 text-center max-w-md bg-white border border-slate-200 rounded-2xl shadow-xs">
-              <AlertCircle size={24} className="text-rose-500" />
-              <p className="text-xs font-bold text-slate-800">{errorMsg}</p>
-              <p className="text-[10px] font-mono text-slate-400">Endpoint: {currentImageUrl}</p>
-            </div>
-          )}
-
-          {/* Large PDF Guard */}
-          {isTooLarge && (
-            <div className="flex flex-col items-center justify-center gap-3 p-8 text-center max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-                <FileText size={24} />
+          {/* Graceful Error State */}
+          {hasError && (
+            <div className="z-10 flex flex-col items-center justify-center gap-3 p-6 text-center max-w-md bg-white border border-rose-200 rounded-2xl shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                <AlertCircle size={20} />
               </div>
-              <div>
+              <div className="space-y-1">
                 <h4 className="text-sm font-bold text-slate-900">
-                  Document Too Large for In-App Preview
+                  Unable to render preview for this page.
                 </h4>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  This document contains {totalPages} pages. In-app preview is disabled to preserve system responsiveness.
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  The server could not rasterize page {pageNumber}. You can retry or access the complete PDF directly.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="mt-2 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-rose-600 to-orange-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-sm active:scale-98"
-              >
-                <ArrowDownToLine size={14} />
-                <span>Download PDF to Read</span>
-              </button>
+
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl cursor-pointer active:scale-[0.97] transition-all shadow-xs"
+                >
+                  <RefreshCw size={12} />
+                  <span>Retry Preview</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl cursor-pointer active:scale-[0.97] transition-all"
+                >
+                  <Download size={12} />
+                  <span>Download PDF</span>
+                </button>
+
+                <a
+                  href={downloadEndpoint}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl cursor-pointer active:scale-[0.97] transition-all"
+                >
+                  <ExternalLink size={12} />
+                  <span>Open Full PDF</span>
+                </a>
+              </div>
             </div>
           )}
 
-          {/* Native Image Renderer */}
-          {!isTooLarge && currentImageUrl && (
+          {/* Rasterized Page Image View (only rendered when blobUrl exists and no error) */}
+          {!hasError && blobUrl && (
             <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
               <AnimatePresence initial={false} custom={direction} mode="wait">
                 <motion.div
@@ -301,21 +436,15 @@ export default function PdfViewer({
                   onDragEnd={handleDragEnd}
                   style={{
                     transform: `scale(${scale}) rotate(${rotation}deg)`,
-                    transition: "transform 0.15s ease",
+                    transition: "transform 160ms cubic-bezier(0.23, 1, 0.32, 1)",
                   }}
-                  className="cursor-grab active:cursor-grabbing max-h-full max-w-full flex items-center justify-center shadow-lg rounded-lg overflow-hidden bg-white"
+                  className="cursor-grab active:cursor-grabbing max-h-full max-w-full flex items-center justify-center shadow-md rounded-lg overflow-hidden bg-white border border-slate-200"
                 >
                   <img
-                    src={currentImageUrl}
+                    src={blobUrl}
                     alt={`Page ${pageNumber}`}
-                    className="max-h-[80vh] w-auto object-contain select-none pointer-events-none"
-                    onLoad={() => {
-                      setImageLoading(false);
-                    }}
-                    onError={() => {
-                      setImageLoading(false);
-                      setErrorMsg(`Unable to load page ${pageNumber}. Check backend logs.`);
-                    }}
+                    className="max-h-[78vh] w-auto object-contain select-none pointer-events-none"
+                    draggable={false}
                   />
                 </motion.div>
               </AnimatePresence>

@@ -11,6 +11,7 @@ import { scoreAndSortChunks } from "../utils/vectorMath.js";
 import { logger } from "../utils/logger.js";
 import { getLocalEmbedding } from "../utils/localEmbedding.js";
 import { renderPdfPageToJpeg } from "../utils/pdfPageRenderer.js";
+import { cleanExtractedText } from "../utils/textCleaner.js";
 
 const require = createRequire(import.meta.url);
 const pdfBase = require("pdf-parse");
@@ -64,8 +65,9 @@ export const extractPdfPages = async (pdfBuffer, startPage = 1, endPage = Infini
           }
           lastY = item.transform[5];
         }
-        pageTexts.push({ pageNumber: pageNum, text });
-        return text;
+        const cleanedText = cleanExtractedText(text);
+        pageTexts.push({ pageNumber: pageNum, text: cleanedText });
+        return cleanedText;
       });
     }
     return Promise.resolve("");
@@ -177,27 +179,38 @@ export const uploadAndProcessPDF = async (req, res) => {
         chunkSize: 1200,
         chunkOverlap: 200,
       });
-      const chunks = await splitter.splitText(textToIndex);
 
-      if (chunks.length === 0) {
-        throw new Error("No text chunks could be generated from the PDF text.");
+      // Target pages to index based on tier
+      const targetPages = totalPages > 50
+        ? parsedData.pages.filter((p) => p.pageNumber <= indexedPages)
+        : parsedData.pages;
+
+      // Local vector generation with exact page number tracking and text cleaning
+      const docsToSave = [];
+      for (const pageItem of targetPages) {
+        const cleanedPageText = cleanExtractedText(pageItem.text);
+        if (!cleanedPageText || !cleanedPageText.trim()) continue;
+        const pageChunks = await splitter.splitText(cleanedPageText);
+        for (const chunkText of pageChunks) {
+          const cleanedChunk = cleanExtractedText(chunkText);
+          if (!cleanedChunk || !cleanedChunk.trim()) continue;
+          const embedding = await getLocalEmbedding(cleanedChunk);
+          docsToSave.push({
+            documentId: parentDoc._id,
+            userId: req.user._id,
+            workspace_id: workspaceId,
+            fileName: req.file.originalname,
+            text: cleanedChunk,
+            embedding: embedding,
+            metadata: {
+              pageNumber: pageItem.pageNumber || 1,
+            },
+          });
+        }
       }
 
-      // Local vector generation using getLocalEmbedding
-      const docsToSave = [];
-      for (const chunkText of chunks) {
-        const embedding = await getLocalEmbedding(chunkText);
-        docsToSave.push({
-          documentId: parentDoc._id,
-          userId: req.user._id,
-          workspace_id: workspaceId,
-          fileName: req.file.originalname,
-          text: chunkText,
-          embedding: embedding,
-          metadata: {
-            pageNumber: 1,
-          },
-        });
+      if (docsToSave.length === 0) {
+        throw new Error("No text chunks could be generated from the PDF text.");
       }
 
       // Bulk-insert DocumentChunk records
@@ -205,7 +218,7 @@ export const uploadAndProcessPDF = async (req, res) => {
 
       // Update document status and tiered metrics
       parentDoc.status = "ready";
-      parentDoc.chunkCount = chunks.length;
+      parentDoc.chunkCount = docsToSave.length;
       parentDoc.pages = totalPages;
       parentDoc.totalPageCount = totalPages;
       parentDoc.indexedPageCount = indexedPages;
@@ -214,7 +227,7 @@ export const uploadAndProcessPDF = async (req, res) => {
       await parentDoc.save();
 
       return res.status(200).json({
-        message: `Successfully indexed ${chunks.length} chunks (${targetTier} - ${indexedPages}/${totalPages} pages).`,
+        message: `Successfully indexed ${docsToSave.length} chunks (${targetTier} - ${indexedPages}/${totalPages} pages).`,
         document: parentDoc,
       });
 
@@ -235,7 +248,7 @@ export const uploadAndProcessPDF = async (req, res) => {
 
   } catch (error) {
     logger.error("upload_and_process_pdf_root_failed", { error: error.message });
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ message: "Failed to upload and process PDF" });
   }
 };
 
@@ -359,27 +372,33 @@ export const expandVectorTier = async (req, res) => {
       });
     }
 
-    // 3. Chunk and vectorize incremental slice
+    // 3. Chunk and vectorize incremental slice with exact page numbers and text cleaning
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1200,
       chunkOverlap: 200,
     });
-    const chunks = await splitter.splitText(textToIndex);
 
     const docsToSave = [];
-    for (const chunkText of chunks) {
-      const embedding = await getLocalEmbedding(chunkText);
-      docsToSave.push({
-        documentId: doc._id,
-        userId: req.user._id,
-        workspace_id: doc.workspace_id,
-        fileName: doc.fileName || doc.name,
-        text: chunkText,
-        embedding: embedding,
-        metadata: {
-          pageNumber: startPage,
-        },
-      });
+    for (const pageItem of parsedData.pages) {
+      const cleanedPageText = cleanExtractedText(pageItem.text);
+      if (!cleanedPageText || !cleanedPageText.trim()) continue;
+      const pageChunks = await splitter.splitText(cleanedPageText);
+      for (const chunkText of pageChunks) {
+        const cleanedChunk = cleanExtractedText(chunkText);
+        if (!cleanedChunk || !cleanedChunk.trim()) continue;
+        const embedding = await getLocalEmbedding(cleanedChunk);
+        docsToSave.push({
+          documentId: doc._id,
+          userId: req.user._id,
+          workspace_id: doc.workspace_id,
+          fileName: doc.fileName || doc.name,
+          text: cleanedChunk,
+          embedding: embedding,
+          metadata: {
+            pageNumber: pageItem.pageNumber || startPage,
+          },
+        });
+      }
     }
 
     if (docsToSave.length > 0) {
@@ -399,7 +418,7 @@ export const expandVectorTier = async (req, res) => {
     });
   } catch (error) {
     logger.error("expand_vector_tier_failed", { error: error.message });
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ message: "Failed to expand vector tier" });
   }
 };
 
@@ -408,7 +427,7 @@ export const listDocuments = async (req, res) => {
     const docs = await Document.find({ userId: req.user._id }).sort({ uploadedAt: -1 });
     return res.status(200).json(docs);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ message: "Failed to retrieve documents" });
   }
 };
 
@@ -433,7 +452,7 @@ export const deleteDocument = async (req, res) => {
 
     return res.status(200).json({ message: "Document and its chunks deleted successfully" });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ message: "Failed to delete document" });
   }
 };
 
@@ -619,6 +638,9 @@ export const getDocumentPagePreview = async (req, res) => {
   } catch (error) {
     console.error("[NATIVE_PAGE_RENDER_ERROR]:", error);
     if (!res.headersSent) {
+      const origin = req.headers.origin || "http://localhost:3000";
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
       return res.status(500).json({ message: "Failed to render document page" });
     }
   }
@@ -637,7 +659,7 @@ export const searchChunks = async (req, res) => {
 
     logger.info("rag_search_context", { dbName, collectionName });
 
-    const queryVector = await getEmbedding(query);
+    const queryVector = await getEmbedding(cleanExtractedText(query));
 
     let results = [];
     try {
@@ -700,6 +722,6 @@ ANSWER:
       error: error.message,
       query: query || "",
     });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ message: "Failed to execute search query" });
   }
 };

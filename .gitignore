@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 **/node_modules/
 
 # Next.js builds
@@ -12,6 +12,10 @@ nexusfrontend/out/
 frontend/.env*
 backend/.env*
 nexusfrontend/.env*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+!nexusfrontend/.env.example
 
 # OS files
 Thumbs.db

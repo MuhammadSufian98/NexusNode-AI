@@ -11,6 +11,7 @@ import { scoreAndSortChunks } from "../utils/vectorMath.js";
 import { decryptSecret } from "../utils/cryptoVault.js";
 import groq from "../utils/groq.js";
 import { createResilientGroqCompletion } from "../utils/resilientGroq.js";
+import { cleanExtractedText } from "../utils/textCleaner.js";
 
 /**
  * Retrieve relevant chunks with hybrid fallback & deduplication
@@ -395,7 +396,7 @@ export const handleChatMessage = async (req, res) => {
     }
 
     // 5. Generate Query Embedding & Retrieve Chunks
-    const queryVector = await getEmbedding(queryText);
+    const queryVector = await getEmbedding(cleanExtractedText(queryText));
     const results = await retrieveRelevantChunks({
       queryText,
       userId: req.user._id,
@@ -415,7 +416,7 @@ export const handleChatMessage = async (req, res) => {
       .join("\n\n");
 
     const systemPrompt = `You are the advanced document intelligence engine for NexusNode AI.
-Answer the user's prompt using the provided document excerpts.
+Be concise, clear, and direct. Do not pad responses. Base every factual claim strictly on the provided context blocks. Quote verbatim where critical.
 
 === SEMANTIC CONTEXT BLOCKS ===
 ${contextBlocks || "No direct matching excerpts found. Provide a concise analytical answer based on standard technical understanding."}
@@ -448,25 +449,65 @@ CRITICAL RULES:
       { role: "user", content: queryText },
     ];
 
-    const citations = results.map((chunk) => {
+    const rawCitations = results.map((chunk) => {
       const docIdStr = chunk.documentId
         ? chunk.documentId.toString()
         : (resolvedDocId ? resolvedDocId.toString() : chunk._id.toString());
-      const docName = chunk.fileName || parentDoc?.fileName || parentDoc?.name || "Document.pdf";
-      const pageNum = chunk.metadata?.pageNumber || chunk.metadata?.page || 1;
-      const scoreNum = typeof chunk.score === "number" ? chunk.score : 0.88;
+      const docName = chunk.fileName || parentDoc?.fileName || parentDoc?.name || "Document";
+      const pageNum = chunk.metadata?.pageNumber || chunk.metadata?.page || chunk.pageNumber || 1;
+      const scoreNum = typeof chunk.score === "number" ? chunk.score : 0;
 
       return {
         documentId: docIdStr,
+        documentTitle: docName,
+        pageNumber: pageNum,
+        textExcerpt: chunk.text || "",
+        similarity: scoreNum,
+        // UI backward compatibility aliases
         fileName: docName,
         documentName: docName,
-        pageNumber: pageNum,
         textSnippet: chunk.text || "",
         snippet: (chunk.text || "").slice(0, 260),
         similarityScore: scoreNum,
         score: scoreNum,
       };
     });
+
+    // Page Deduplication & Reference Cap:
+    // Group chunks by pageNumber and cap references to maximum 2 chunks per page
+    const pageMap = new Map();
+    for (const chunk of rawCitations) {
+      const page = chunk.pageNumber || 1;
+      if (!pageMap.has(page)) {
+        pageMap.set(page, []);
+      }
+      if (pageMap.get(page).length < 2) {
+        pageMap.get(page).push(chunk);
+      }
+    }
+
+    // If all retrieved citations come from the same page, collapse them
+    // so the frontend receives a single clean reference item representing that page.
+    let citations;
+    if (pageMap.size === 1 && rawCitations.length > 0) {
+      const [singlePage, chunksOnPage] = Array.from(pageMap.entries())[0];
+      const primary = chunksOnPage[0];
+      const combinedText = Array.from(
+        new Set(chunksOnPage.map((c) => (c.textExcerpt || "").trim()).filter(Boolean))
+      ).join("\n...\n");
+
+      citations = [
+        {
+          ...primary,
+          pageNumber: singlePage,
+          textExcerpt: combinedText || primary.textExcerpt,
+          textSnippet: combinedText || primary.textSnippet,
+          snippet: (combinedText || primary.snippet || "").slice(0, 300),
+        },
+      ];
+    } else {
+      citations = Array.from(pageMap.values()).flat();
+    }
 
     // 7. Check for User Custom BYOK Configuration
     const userRecord = await User.findById(req.user._id).select(
@@ -551,7 +592,7 @@ CRITICAL RULES:
           messages: groqMessages,
           model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
           temperature: 0.2,
-          max_tokens: 1500,
+          max_tokens: Number(process.env.GROQ_MAX_TOKENS) || 1024,
         });
 
         if (chatCompletion?.choices?.[0]?.message?.content) {
@@ -600,9 +641,14 @@ CRITICAL RULES:
     });
   } catch (error) {
     console.error(`[Chat Message] Error: ${error.message}`);
+    const safeMessage = (error.message || "Failed to process chat message.")
+      .replace(/gsk_[a-zA-Z0-9_-]+/g, "[REDACTED]")
+      .replace(/AIza[a-zA-Z0-9_-]+/g, "[REDACTED]")
+      .replace(/sk-[a-zA-Z0-9_-]+/g, "[REDACTED]");
+
     return res.status(500).json({
       success: false,
-      message: error.message || "Failed to process chat message.",
+      message: safeMessage,
     });
   }
 };
@@ -795,7 +841,7 @@ export const editChatMessage = async (req, res) => {
     }
 
     const resolvedDocId = conversation.documentId;
-    const queryVector = await getEmbedding(content);
+    const queryVector = await getEmbedding(cleanExtractedText(content));
 
     const results = await retrieveRelevantChunks({
       queryText: content,
@@ -814,7 +860,7 @@ export const editChatMessage = async (req, res) => {
       .join("\n\n");
 
     const systemPrompt = `You are the advanced document intelligence engine for NexusNode AI.
-Answer the user's prompt using only the provided semantic text context blocks.
+Be concise, clear, and direct. Do not pad responses. Base every factual claim strictly on the provided context blocks. Quote verbatim where critical.
 
 === SEMANTIC CONTEXT BLOCKS ===
 ${contextBlocks}
@@ -840,32 +886,69 @@ ${contextBlocks}
       messages: groqMessages,
       model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
       temperature: 0.2,
-      max_tokens: 1200,
+      max_tokens: Number(process.env.GROQ_MAX_TOKENS) || 1024,
     });
 
 
     const assistantResponseText =
       chatCompletion.choices[0]?.message?.content || "No response generated.";
 
-    const citations = results.map((chunk) => {
+    const rawCitations = results.map((chunk) => {
       const docIdStr = chunk.documentId
         ? chunk.documentId.toString()
         : (resolvedDocId ? resolvedDocId.toString() : chunk._id.toString());
-      const docName = chunk.fileName || "Document.pdf";
-      const pageNum = chunk.metadata?.pageNumber || chunk.metadata?.page || 1;
-      const scoreNum = typeof chunk.score === "number" ? chunk.score : 0.88;
+      const docName = chunk.fileName || "Document";
+      const pageNum = chunk.metadata?.pageNumber || chunk.metadata?.page || chunk.pageNumber || 1;
+      const scoreNum = typeof chunk.score === "number" ? chunk.score : 0;
 
       return {
         documentId: docIdStr,
+        documentTitle: docName,
+        pageNumber: pageNum,
+        textExcerpt: chunk.text || "",
+        similarity: scoreNum,
+        // UI backward compatibility aliases
         fileName: docName,
         documentName: docName,
-        pageNumber: pageNum,
         textSnippet: chunk.text || "",
         snippet: (chunk.text || "").slice(0, 260),
         similarityScore: scoreNum,
         score: scoreNum,
       };
     });
+
+    // Page Deduplication & Reference Cap:
+    const pageMap = new Map();
+    for (const chunk of rawCitations) {
+      const page = chunk.pageNumber || 1;
+      if (!pageMap.has(page)) {
+        pageMap.set(page, []);
+      }
+      if (pageMap.get(page).length < 2) {
+        pageMap.get(page).push(chunk);
+      }
+    }
+
+    let citations;
+    if (pageMap.size === 1 && rawCitations.length > 0) {
+      const [singlePage, chunksOnPage] = Array.from(pageMap.entries())[0];
+      const primary = chunksOnPage[0];
+      const combinedText = Array.from(
+        new Set(chunksOnPage.map((c) => (c.textExcerpt || "").trim()).filter(Boolean))
+      ).join("\n...\n");
+
+      citations = [
+        {
+          ...primary,
+          pageNumber: singlePage,
+          textExcerpt: combinedText || primary.textExcerpt,
+          textSnippet: combinedText || primary.textSnippet,
+          snippet: (combinedText || primary.snippet || "").slice(0, 300),
+        },
+      ];
+    } else {
+      citations = Array.from(pageMap.values()).flat();
+    }
 
     const assistantMessage = await Message.findOne({
       conversationId: conversation._id,
@@ -908,9 +991,14 @@ ${contextBlocks}
       assistantMessage: updatedAssistantMessage,
     });
   } catch (error) {
+    const safeMessage = (error.message || "Failed to edit chat message.")
+      .replace(/gsk_[a-zA-Z0-9_-]+/g, "[REDACTED]")
+      .replace(/AIza[a-zA-Z0-9_-]+/g, "[REDACTED]")
+      .replace(/sk-[a-zA-Z0-9_-]+/g, "[REDACTED]");
+
     return res.status(500).json({
       success: false,
-      message: error.message || "Failed to edit chat message.",
+      message: safeMessage,
     });
   }
 };

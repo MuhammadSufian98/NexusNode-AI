@@ -12,6 +12,9 @@ const citationSchema = new mongoose.Schema(
     documentName: {
       type: String,
     },
+    documentTitle: {
+      type: String,
+    },
     pageNumber: {
       type: Number,
       default: 1,
@@ -21,6 +24,13 @@ const citationSchema = new mongoose.Schema(
     },
     snippet: {
       type: String,
+    },
+    textExcerpt: {
+      type: String,
+    },
+    similarity: {
+      type: Number,
+      default: 0.85,
     },
     similarityScore: {
       type: Number,

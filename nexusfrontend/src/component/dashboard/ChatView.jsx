@@ -162,82 +162,178 @@ const CustomCodeBlock = ({ className, children, ...props }) => {
 };
 
 // -------------------------------------------------------------
-// VERBATIM CITATIONS ACCORDION
+// VERBATIM CITATIONS ACCORDION & CHIPS
 // -------------------------------------------------------------
+const MAX_VISIBLE_PILLS = 4;
+
 const CustomCitationsAccordion = ({ citations, onSelectCitation }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showAllPills, setShowAllPills] = useState(false);
+  const excerptContainerRef = useRef(null);
+
   if (!citations || citations.length === 0) return null;
 
-  return (
-    <div className="mt-3 pt-2.5 border-t border-slate-200/70">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-slate-600 hover:text-rose-600 font-semibold transition-colors cursor-pointer py-0.5"
-      >
-        <div className="w-5 h-5 rounded-md bg-rose-50 border border-rose-200/60 flex items-center justify-center text-rose-600 shrink-0">
-          <BookOpen size={11} />
-        </div>
-        <span className="font-mono text-[11px] font-bold">
-          {citations.length} Ground-Truth Reference
-          {citations.length > 1 ? "s" : ""}
-        </span>
-        <ChevronDown
-          size={12}
-          className={`text-slate-400 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-rose-600" : ""
-          }`}
-        />
-      </button>
+  // Group / deduplicate citations by page number
+  const groupedByPage = useMemo(() => {
+    const map = new Map();
+    citations.forEach((cit) => {
+      const pageKey = Number(cit.pageNumber) || 1;
+      if (!map.has(pageKey)) {
+        map.set(pageKey, {
+          primaryCitation: cit,
+          pageNumber: pageKey,
+          documentName: cit.documentName || cit.fileName || "Doc",
+          documentId: cit.documentId,
+          count: 0,
+          highestScore: cit.similarityScore || cit.score || 0,
+          excerpts: [],
+        });
+      }
+      const group = map.get(pageKey);
+      group.count += 1;
+      group.excerpts.push(cit);
+      const score = cit.similarityScore || cit.score || 0;
+      if (score > group.highestScore) {
+        group.highestScore = score;
+      }
+    });
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="overflow-hidden space-y-2 mt-2.5"
+    return Array.from(map.values()).sort((a, b) => a.pageNumber - b.pageNumber);
+  }, [citations]);
+
+  const visiblePills = showAllPills
+    ? groupedByPage
+    : groupedByPage.slice(0, MAX_VISIBLE_PILLS);
+  const hiddenCount = groupedByPage.length - MAX_VISIBLE_PILLS;
+
+  return (
+    <div className="mt-3 pt-2.5 border-t border-slate-200/70 space-y-2.5">
+      {/* 1. Deduplicated Clickable Citation Badges by Page */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {visiblePills.map((group) => {
+          const matchPercent = group.highestScore
+            ? Math.round(group.highestScore * 100)
+            : null;
+
+          return (
+            <button
+              key={`page-pill-${group.pageNumber}`}
+              type="button"
+              onClick={() =>
+                onSelectCitation &&
+                onSelectCitation(group.primaryCitation, citations)
+              }
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-rose-50/80 hover:bg-rose-100 text-rose-800 border border-rose-200/80 transition-all duration-150 cursor-pointer active:scale-95 group/chip shadow-2xs select-none"
+              title={`Page ${group.pageNumber} (${group.count} excerpt${group.count > 1 ? "s" : ""}) - ${group.documentName}`}
+            >
+              <FileText
+                size={11}
+                className="text-rose-600 shrink-0 group-hover/chip:scale-110 transition-transform"
+              />
+              <span className="font-semibold text-slate-900 group-hover/chip:text-rose-900 truncate max-w-[120px] sm:max-w-[150px]">
+                {group.documentName}
+              </span>
+              <span className="text-rose-600 font-mono text-[10px] font-bold">
+                • Page {group.pageNumber}
+              </span>
+              {group.count > 1 && (
+                <span className="text-[9px] font-mono font-medium text-slate-500 bg-white/90 border border-slate-200/60 px-1 py-0.2 rounded-full">
+                  {group.count} excerpts
+                </span>
+              )}
+              {matchPercent !== null && (
+                <span className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-white text-emerald-600 border border-emerald-200/60 ml-0.5">
+                  {matchPercent}%
+                </span>
+              )}
+            </button>
+          );
+        })}
+
+        {/* More pills toggle badge */}
+        {!showAllPills && hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAllPills(true)}
+            className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-mono font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors cursor-pointer active:scale-95 select-none"
+            title="Show all cited pages"
           >
-            {citations.map((c, i) => (
-              <div
-                key={i}
-                onClick={() => onSelectCitation && onSelectCitation(c, citations)}
-                className="text-[11px] leading-relaxed border border-slate-200/80 bg-slate-50/70 hover:bg-white hover:border-rose-300 hover:shadow-xs p-2.5 rounded-xl transition-all cursor-pointer group/cit active:scale-[0.99]"
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-800 group-hover/cit:text-rose-600 font-mono text-[10px] uppercase truncate transition-colors">
-                    <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0" />
-                    <span>{c.documentName || c.fileName || "Source Document"}</span>
-                    {c.pageNumber && (
-                      <span className="text-slate-400 font-normal lowercase">
-                        • pg {c.pageNumber}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {(c.similarityScore || c.score) && (
-                      <span className="font-mono text-[9px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.2 rounded">
-                        {Math.round((c.similarityScore || c.score) * 100)}% Match
-                      </span>
-                    )}
-                    <span className="text-rose-600 text-[9px] font-mono font-bold opacity-0 group-hover/cit:opacity-100 transition-opacity ml-1 flex items-center gap-0.5">
-                      Inspect &rarr;
-                    </span>
-                  </div>
-                </div>
-                <p className="font-normal text-slate-600 italic">
-                  &ldquo;
-                  {c.textSnippet ||
-                    c.snippet ||
-                    "Context fragment extracted from vector index."}
-                  &rdquo;
-                </p>
-              </div>
-            ))}
-          </motion.div>
+            +{hiddenCount} more
+          </button>
         )}
-      </AnimatePresence>
+      </div>
+
+      {/* 2. Expandable Verbatim Text Excerpts Accordion */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-2 text-slate-500 hover:text-rose-600 font-semibold transition-colors cursor-pointer py-0.5 text-[11px]"
+        >
+          <div className="w-4 h-4 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
+            <BookOpen size={10} />
+          </div>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-600">
+            {citations.length} Ground-Truth Excerpt{citations.length > 1 ? "s" : ""}
+          </span>
+          <ChevronDown
+            size={11}
+            className={`text-slate-400 transition-transform duration-200 ${
+              isOpen ? "rotate-180 text-rose-600" : ""
+            }`}
+          />
+        </button>
+
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              ref={excerptContainerRef}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="overflow-hidden space-y-2 mt-2"
+            >
+              {citations.map((c, i) => (
+                <div
+                  key={i}
+                  onClick={() => onSelectCitation && onSelectCitation(c, citations)}
+                  className="text-[11px] leading-relaxed border border-slate-200/80 bg-slate-50/70 hover:bg-white hover:border-rose-300 hover:shadow-xs p-2.5 rounded-xl transition-all cursor-pointer group/cit active:scale-[0.99]"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-800 group-hover/cit:text-rose-600 font-mono text-[10px] uppercase truncate transition-colors">
+                      <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0" />
+                      <span>{c.documentName || c.fileName || "Source Document"}</span>
+                      {c.pageNumber && (
+                        <span className="text-slate-400 font-normal lowercase">
+                          • pg {c.pageNumber}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {(c.similarityScore || c.score) && (
+                        <span className="font-mono text-[9px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.2 rounded">
+                          {Math.round((c.similarityScore || c.score) * 100)}% Match
+                        </span>
+                      )}
+                      <span className="text-rose-600 text-[9px] font-mono font-bold opacity-0 group-hover/cit:opacity-100 transition-opacity ml-1 flex items-center gap-0.5">
+                        Inspect &rarr;
+                      </span>
+                    </div>
+                  </div>
+                  <p className="font-normal text-slate-600 italic">
+                    &ldquo;
+                    {c.textSnippet ||
+                      c.snippet ||
+                      "Context fragment extracted from vector index."}
+                    &rdquo;
+                  </p>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
@@ -461,6 +557,7 @@ export function ChatView() {
   const [selectedPdfName, setSelectedPdfName] = useState("");
   const [selectedPdfType, setSelectedPdfType] = useState("application/pdf");
   const [selectedPdfPageCount, setSelectedPdfPageCount] = useState(0);
+  const [selectedPdfPage, setSelectedPdfPage] = useState(1);
   const [activeCitation, setActiveCitation] = useState(null);
   const [activeCitationList, setActiveCitationList] = useState([]);
 
@@ -471,7 +568,7 @@ export function ChatView() {
     }
   }, []);
 
-  const openPdfViewer = useCallback((doc) => {
+  const openPdfViewer = useCallback((doc, targetPage = 1) => {
     if (!doc) return;
     const docId = doc._id || doc.id;
     if (!docId) return;
@@ -479,10 +576,34 @@ export function ChatView() {
     const streamUrl = `${apiUrl}/api/rag/documents/${docId}/preview-stream`;
     setSelectedDocId(String(docId));
     setSelectedPdfUrl(streamUrl);
-    setSelectedPdfName(doc.name || doc.fileName || "Document.pdf");
-    setSelectedPdfPageCount(Number(doc.pages || doc.totalPageCount || 0));
+    setSelectedPdfName(doc.name || doc.fileName || doc.documentName || "Document.pdf");
+    setSelectedPdfPageCount(Number(doc.pages || doc.totalPageCount || doc.pageCount || 0));
+    setSelectedPdfPage(Number(targetPage) || 1);
     setViewerOpen(true);
   }, []);
+
+  const handleOpenCitationInViewer = useCallback((citData) => {
+    if (!citData) return;
+    const targetDocId = citData.documentId || selectedDocument?.id || selectedDocument?._id;
+    const targetPage = Number(citData.pageNumber) || 1;
+
+    // Find document in store documents or fallback to selected/citation details
+    const foundDoc = documents.find(
+      (d) => (d.id || d._id) === targetDocId
+    ) || selectedDocument || {
+      id: targetDocId,
+      name: citData.documentName || "Document.pdf",
+      pages: citData.pageCount || 0,
+    };
+
+    if (foundDoc && (!selectedDocument || (selectedDocument.id || selectedDocument._id) !== targetDocId)) {
+      selectDocument(foundDoc);
+    }
+
+    // Close citation panel and open viewer at cited page
+    setActiveCitation(null);
+    openPdfViewer(foundDoc, targetPage);
+  }, [documents, selectedDocument, selectDocument, openPdfViewer]);
 
   const closePdfViewer = useCallback(() => {
     setViewerOpen(false);
@@ -490,6 +611,7 @@ export function ChatView() {
     setSelectedPdfUrl("");
     setSelectedPdfName("");
     setSelectedPdfPageCount(0);
+    setSelectedPdfPage(1);
   }, []);
 
   const scrollRef = useRef(null);
@@ -979,15 +1101,14 @@ export function ChatView() {
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* 4. SLIDE-OVER CITATION INSPECTOR PANEL                   */}
-        {/* ========================================================= */}
+        {/* 4. SLIDE-OVER CITATION INSPECTOR PANEL (PORTALED) */}
         <AnimatePresence>
           {activeCitation && (
             <CitationInspectorPanel
               citation={activeCitation}
               allCitations={activeCitationList}
               onSelectCitation={(cit) => setActiveCitation(cit)}
+              onOpenInViewer={handleOpenCitationInViewer}
               onClose={() => setActiveCitation(null)}
             />
           )}
@@ -1012,6 +1133,7 @@ export function ChatView() {
           pdfUrl={selectedPdfUrl}
           fileName={selectedPdfName}
           pageCount={selectedPdfPageCount}
+          initialPage={selectedPdfPage}
           apiBaseUrl={process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}
         />
       )}
