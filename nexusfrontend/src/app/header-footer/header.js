@@ -17,17 +17,48 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/store/authStore";
 
+const AuthButton = ({ user, isScrolled = false, mobile = false }) => (
+  <Link
+    href={user ? "/dashboard" : "/auth/login"}
+    className={mobile ? "w-full" : "shrink-0"}
+  >
+    <button
+      className={`${
+        mobile
+          ? "w-full py-3.5 rounded-xl text-sm"
+          : isScrolled
+            ? "text-[11px] px-4 py-1.5 rounded-full"
+            : "text-[12px] px-5 py-2 rounded-full"
+      } font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 bg-linear-to-r from-[var(--color-main)] via-[var(--color-mid)] to-[var(--color-highlight)] hover:opacity-95 active:scale-95 text-white shadow-md shadow-[var(--color-glow)] transition-all cursor-pointer border border-white/20`}
+    >
+      {user ? (
+        <>
+          {mobile && <LayoutDashboard size={16} />}
+          <span>Workspace</span>
+          <ChevronRight size={13} strokeWidth={2.5} />
+        </>
+      ) : (
+        <>
+          <span>Launch App</span>
+          <LogIn size={13} strokeWidth={2.5} />
+        </>
+      )}
+    </button>
+  </Link>
+);
+
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user } = useAuth();
+  const user = useAuth((state) => state.user);
 
   useEffect(() => {
     let lastScrollY = typeof window !== "undefined" ? window.scrollY : 0;
 
     const handleScroll = (e) => {
-      const currentScrollY = typeof e?.scroll === "number" ? e.scroll : window.scrollY;
+      const currentScrollY =
+        typeof e?.scroll === "number" ? e.scroll : window.scrollY;
       const scrollDifference = currentScrollY - lastScrollY;
 
       // Morph to floating pill when scrolling past top threshold
@@ -45,13 +76,13 @@ export default function Header() {
       lastScrollY = currentScrollY;
     };
 
-    if (window.lenis) {
+    if (typeof window !== "undefined" && window.lenis) {
       window.lenis.on("scroll", handleScroll);
     }
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
-      if (window.lenis) {
+      if (typeof window !== "undefined" && window.lenis) {
         window.lenis.off("scroll", handleScroll);
       }
       window.removeEventListener("scroll", handleScroll);
@@ -86,36 +117,6 @@ export default function Header() {
       }
     }
   };
-
-  const AuthButton = ({ mobile = false }) => (
-    <Link
-      href={user ? "/dashboard" : "/auth/login"}
-      className={mobile ? "w-full" : "shrink-0"}
-    >
-      <button
-        className={`${
-          mobile
-            ? "w-full py-3.5 rounded-xl text-sm"
-            : isScrolled
-              ? "text-[11px] px-4 py-1.5 rounded-full"
-              : "text-[12px] px-5 py-2 rounded-full"
-        } font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 bg-linear-to-r from-[var(--color-main)] via-[var(--color-mid)] to-[var(--color-highlight)] hover:opacity-95 active:scale-95 text-white shadow-md shadow-[var(--color-glow)] transition-all cursor-pointer border border-white/20`}
-      >
-        {user ? (
-          <>
-            {mobile && <LayoutDashboard size={16} />}
-            <span>Workspace</span>
-            <ChevronRight size={13} strokeWidth={2.5} />
-          </>
-        ) : (
-          <>
-            <span>Launch App</span>
-            <LogIn size={13} strokeWidth={2.5} />
-          </>
-        )}
-      </button>
-    </Link>
-  );
 
   return (
     <>
@@ -203,7 +204,7 @@ export default function Header() {
 
               <div className="h-4 w-[1px] bg-[var(--color-border)] mx-1" />
 
-              <AuthButton />
+              <AuthButton user={user} isScrolled={isScrolled} />
             </nav>
 
             {/* MOBILE TOGGLE BAR */}
@@ -275,7 +276,7 @@ export default function Header() {
               </div>
 
               <div className="pt-4 border-t border-[var(--color-border)] space-y-3">
-                <AuthButton mobile />
+                <AuthButton user={user} mobile />
                 <p className="text-center text-[10px] text-[var(--color-text-muted)] font-mono uppercase tracking-wider">
                   NexusNode AI • Document Intelligence
                 </p>

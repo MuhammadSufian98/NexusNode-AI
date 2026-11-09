@@ -48,13 +48,9 @@ export default function CitationInspectorPanel({
   const [errorMessage, setErrorMessage] = useState(null);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  // Sync page number and total pages when citation changes
-  useEffect(() => {
+  const [prevCitation, setPrevCitation] = useState(citation);
+  if (citation !== prevCitation) {
+    setPrevCitation(citation);
     if (citation?.pageNumber) {
       setPageNumber(Number(citation.pageNumber) || 1);
       setImageLoading(true);
@@ -65,7 +61,12 @@ export default function CitationInspectorPanel({
         citation.pageCount || citation.pages || citation.totalPageCount
       );
     }
-  }, [citation]);
+  }
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const documentId = citation?.documentId;
   const fileName =
@@ -129,7 +130,7 @@ export default function CitationInspectorPanel({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 pointer-events-none select-none font-['PP_Neue_Montreal',Arial,sans-serif]">
+    <div className="fixed inset-0 z-50 pointer-events-none select-none font-sans">
       {/* Background Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}

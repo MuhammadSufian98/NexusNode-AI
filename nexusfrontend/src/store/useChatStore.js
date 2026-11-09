@@ -113,34 +113,49 @@ export const useChatStore = create((set, get) => ({
     set({ abortController: controller });
 
     try {
-      const data = await chatApi.sendMessage({
+      let accumulatedContent = "";
+      let accumulatedCitations = [];
+
+      await chatApi.streamChatMessage({
         message: text,
         conversationId: currentConvId,
         documentId: targetDocId,
         signal: controller.signal,
+        onToken: (_token, fullText) => {
+          accumulatedContent = fullText;
+          set((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === assistantMsgId
+                ? { ...msg, content: fullText }
+                : msg
+            ),
+          }));
+        },
+        onCitation: (citations) => {
+          accumulatedCitations = citations.map((c) => ({
+            documentId: c.documentId || targetDocId || "",
+            fileName: c.fileName || c.documentName || "Document.pdf",
+            pageNumber: c.pageNumber || 1,
+            textSnippet: c.textSnippet || c.snippet || "",
+            snippet: c.snippet || c.textSnippet || "",
+            similarityScore: c.similarityScore || c.score || 0,
+          }));
+          set((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === assistantMsgId
+                ? { ...msg, citations: accumulatedCitations }
+                : msg
+            ),
+          }));
+        },
+        onComplete: (fullText) => {
+          accumulatedContent = fullText || accumulatedContent;
+        },
       });
-
-      const answer =
-        data.assistantMessage?.content ||
-        data.answer ||
-        "No response generated.";
-
-      const rawCitations =
-        data.assistantMessage?.citations || data.citations || [];
-      const citations = rawCitations.map((c) => ({
-        documentId: c.documentId || documentId || "",
-        fileName: c.fileName || "Document.pdf",
-        pageNumber: c.pageNumber || 1,
-        textSnippet: c.textSnippet || c.snippet || "",
-        snippet: c.snippet || c.textSnippet || "",
-      }));
-
-      const finalConvId =
-        data.conversationId || data.sessionId || currentConvId;
 
       set((state) => {
         const updatedConversations = state.conversationsList.map((c) =>
-          c._id === finalConvId || c.id === finalConvId
+          c._id === currentConvId || c.id === currentConvId
             ? {
                 ...c,
                 lastMessage: text.slice(0, 50),
@@ -150,16 +165,12 @@ export const useChatStore = create((set, get) => ({
         );
 
         return {
-          conversationId: finalConvId,
-          activeConversationId: finalConvId,
           messages: state.messages.map((msg) =>
             msg.id === assistantMsgId
               ? {
                   ...msg,
-                  id: data.assistantMessage?._id || data.assistantMessage?.id || assistantMsgId,
-                  _id: data.assistantMessage?._id || data.assistantMessage?.id || assistantMsgId,
-                  content: answer,
-                  citations: citations,
+                  content: accumulatedContent || msg.content || "Insight retrieved.",
+                  citations: accumulatedCitations.length > 0 ? accumulatedCitations : msg.citations,
                 }
               : msg
           ),
@@ -167,8 +178,6 @@ export const useChatStore = create((set, get) => ({
           conversations: updatedConversations,
         };
       });
-
-      toast.success("Insight retrieved!");
     } catch (error) {
       if (error.name === "CanceledError" || error.name === "AbortError") {
         set((state) => ({
@@ -180,12 +189,12 @@ export const useChatStore = create((set, get) => ({
             msg.id === assistantMsgId
               ? {
                   ...msg,
-                  content: `Error: ${error.message || "Request failed"}`,
+                  content: `Error: ${error.userFriendlyMessage || error.message || "Request failed"}`,
                 }
               : msg
           ),
         }));
-        toast.error(error.message || "Failed to send message");
+        toast.error(error.userFriendlyMessage || error.message || "Failed to send message");
       }
     } finally {
       set({ isProcessing: false, abortController: null });

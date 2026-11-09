@@ -1,3 +1,3 @@
-import DocumentsView from "@/component/dashboard/DocumentsView";
+import DocumentsView from "@/components/dashboard/DocumentsView";
 
 export default DocumentsView;

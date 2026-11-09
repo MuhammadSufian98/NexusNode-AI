@@ -62,28 +62,26 @@ const tabVariants = {
 };
 
 export function SettingsView() {
-  const {
-    savedConfig,
-    selectedProvider,
-    useCustomKeys,
-    apiKey,
-    theme,
-    language,
-    loadingConfig,
-    savingKey,
-    wiping,
-    resetting,
-    indexing,
-    loadSettings,
-    saveNeuralKey,
-    purgeVault,
-    clearChatLogs,
-    reindexAssets,
-    setSelectedProvider,
-    setApiKey,
-    setTheme,
-    setLanguage,
-  } = useSettingsStore();
+  const savedConfig = useSettingsStore((state) => state.savedConfig);
+  const selectedProvider = useSettingsStore((state) => state.selectedProvider);
+  const useCustomKeys = useSettingsStore((state) => state.useCustomKeys);
+  const apiKey = useSettingsStore((state) => state.apiKey);
+  const theme = useSettingsStore((state) => state.theme);
+  const language = useSettingsStore((state) => state.language);
+  const loadingConfig = useSettingsStore((state) => state.loadingConfig);
+  const savingKey = useSettingsStore((state) => state.savingKey);
+  const wiping = useSettingsStore((state) => state.wiping);
+  const resetting = useSettingsStore((state) => state.resetting);
+  const indexing = useSettingsStore((state) => state.indexing);
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
+  const saveNeuralKey = useSettingsStore((state) => state.saveNeuralKey);
+  const purgeVault = useSettingsStore((state) => state.purgeVault);
+  const clearChatLogs = useSettingsStore((state) => state.clearChatLogs);
+  const reindexAssets = useSettingsStore((state) => state.reindexAssets);
+  const setSelectedProvider = useSettingsStore((state) => state.setSelectedProvider);
+  const setApiKey = useSettingsStore((state) => state.setApiKey);
+  const setTheme = useSettingsStore((state) => state.setTheme);
+  const setLanguage = useSettingsStore((state) => state.setLanguage);
 
   const fetchOverviewData = useOverviewStore(
     (state) => state.fetchOverviewData,

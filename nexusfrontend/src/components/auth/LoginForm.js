@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, ArrowRight, Mail, Lock, Fingerprint } from "lucide-react";
-import GlassButton from "@/component/Button";
+import GlassButton from "@/components/Button";
 import { useAuth } from "@/store/authStore";
 
 const LoginFormInput = ({

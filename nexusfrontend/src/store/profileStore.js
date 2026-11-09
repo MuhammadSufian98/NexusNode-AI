@@ -6,7 +6,7 @@ import {
   updateUserProfile,
   uploadUserAvatar,
   deleteUserAvatar,
-} from "@/utils/authApi";
+} from "@/services/authApi";
 import { useAuth } from "@/store/authStore";
 
 const toProfileUser = (apiUser) => ({

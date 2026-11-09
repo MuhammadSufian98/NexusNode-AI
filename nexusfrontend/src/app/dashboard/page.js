@@ -27,21 +27,28 @@ import {
   useAuth,
 } from "@/store";
 
-import Sidebar, { smoothLayoutTransition } from "@/component/dashboard/Sidebar";
+import Sidebar, { smoothLayoutTransition } from "@/components/dashboard/Sidebar";
 import {
   OverviewView,
   DocumentsView,
   ChatView,
   SettingsView,
   ProfileView,
-} from "@/component/dashboard";
+} from "@/components/dashboard";
 
 export default function Dashboard() {
   const router = useRouter();
-  const { activeSection, setActiveSection, sidebarOpen, setSidebarOpen } =
-    useUiStore();
-  const { isUploading, setIsUploading, fetchDocuments, handleFileUpload } =
-    useDocumentStore();
+  const activeSection = useUiStore((state) => state.activeSection);
+  const setActiveSection = useUiStore((state) => state.setActiveSection);
+  const sidebarOpen = useUiStore((state) => state.sidebarOpen);
+  const setSidebarOpen = useUiStore((state) => state.setSidebarOpen);
+
+  const isUploading = useDocumentStore((state) => state.isUploading);
+  const setIsUploading = useDocumentStore((state) => state.setIsUploading);
+  const uploadProgress = useDocumentStore((state) => state.uploadProgress);
+  const fetchDocuments = useDocumentStore((state) => state.fetchDocuments);
+  const handleFileUpload = useDocumentStore((state) => state.handleFileUpload);
+
   const fetchOverviewData = useOverviewStore(
     (state) => state.fetchOverviewData,
   );
@@ -50,7 +57,6 @@ export default function Dashboard() {
     useAuth();
   const [isDesktop, setIsDesktop] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const menuRef = useRef(null);
   const globalFileInputRef = useRef(null);
 
@@ -92,27 +98,12 @@ export default function Dashboard() {
     }
   }, [authChecked, isAuthenticated, router]);
 
-  // Upload progress tracking
-  useEffect(() => {
-    let interval;
-    if (isUploading) {
-      setUploadProgress(0);
-      interval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setTimeout(() => setIsUploading(false), 600);
-            return 100;
-          }
-          return prev + 12;
-        });
-      }, 140);
-    }
-    return () => clearInterval(interval);
-  }, [isUploading, setIsUploading]);
-
   const handleGlobalUpload = async (e) => {
-    const res = await handleFileUpload(e);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const res = await handleFileUpload(file);
+    e.target.value = "";
     if (res && typeof fetchOverviewData === "function") {
       fetchOverviewData();
     }

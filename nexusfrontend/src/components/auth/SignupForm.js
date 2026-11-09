@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   ChevronLeft,
 } from "lucide-react";
-import GlassButton from "@/component/Button";
+import GlassButton from "@/components/Button";
 import { useAuth } from "@/store/authStore";
 
 const SignupFormInput = ({
@@ -247,7 +247,7 @@ const SignupForm = ({ onSwitchToLogin }) => {
 
             <div className="mt-6 pt-5 border-t border-slate-200/50 flex flex-col items-center">
               <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
-                Didn't receive code?{" "}
+                Didn&apos;t receive code?{" "}
                 <button className="text-rose-600 hover:underline ml-1">
                   Resend
                 </button>

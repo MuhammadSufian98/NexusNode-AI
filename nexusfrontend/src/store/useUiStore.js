@@ -12,7 +12,6 @@ export const useUiStore = create((set, get) => ({
 
   // Global Modals State
   modals: {
-    knowledgeTree: false,
     pdfViewer: false,
     errorDetails: false,
     confirmAction: false,
@@ -46,7 +45,6 @@ export const useUiStore = create((set, get) => ({
   closeAllModals: () =>
     set({
       modals: {
-        knowledgeTree: false,
         pdfViewer: false,
         errorDetails: false,
         confirmAction: false,

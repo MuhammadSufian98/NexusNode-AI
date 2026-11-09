@@ -14,7 +14,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import GlassButton from "@/component/Button";
+import GlassButton from "@/components/Button";
 import { useProfile } from "@/store/profileStore";
 
 export function ProfileView() {

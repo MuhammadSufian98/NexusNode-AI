@@ -45,8 +45,9 @@ export default function DocumentIntelligenceNarrative() {
 
   return (
     <section
+      id="architecture"
       ref={containerRef}
-      className="relative z-20 w-full bg-[var(--color-canvas)] py-20 sm:py-28 lg:py-36 border-y border-[var(--color-border)] select-none overflow-hidden font-['PP_Neue_Montreal',Arial,sans-serif]"
+      className="relative z-20 w-full bg-[var(--color-canvas)] py-20 sm:py-28 lg:py-36 border-y border-[var(--color-border)] select-none overflow-hidden font-sans"
     >
       <div className="max-w-[1360px] mx-auto px-6 sm:px-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start pb-16 lg:pb-24">

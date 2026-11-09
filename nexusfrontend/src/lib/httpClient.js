@@ -7,9 +7,10 @@ const API_URL = (
   "http://localhost:5000"
 ).replace(/\/$/, "");
 
-// 2. Base Axios instance
+// 2. Base Axios instance with 30-second timeout
 const httpClient = axios.create({
   baseURL: API_URL,
+  timeout: 30000,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -34,7 +35,7 @@ httpClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 4. Response Interceptor: Unified error extraction
+// 4. Response Interceptor: Preserve error response and attach userFriendlyMessage
 httpClient.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -44,13 +45,16 @@ httpClient.interceptors.response.use(
       error.message ||
       "An unexpected network error occurred.";
 
-    return Promise.reject(new Error(customMessage));
+    // Attach userFriendlyMessage directly to error object, preserving error.response
+    error.userFriendlyMessage = customMessage;
+    return Promise.reject(error);
   }
 );
 
 // Helper for extracting clean error messages from caught errors
-const extractErrorMessage = (error, defaultFallback = "An unexpected error occurred.") => {
+export const extractErrorMessage = (error, defaultFallback = "An unexpected error occurred.") => {
   return (
+    error.userFriendlyMessage ||
     error.response?.data?.message ||
     error.response?.data?.error ||
     error.message ||
@@ -73,7 +77,8 @@ export async function getRequest(url, params = {}, config = {}) {
     });
     return res.data;
   } catch (error) {
-    throw new Error(extractErrorMessage(error, "Failed to fetch data."));
+    error.message = extractErrorMessage(error, "Failed to fetch data.");
+    throw error;
   }
 }
 
@@ -89,7 +94,8 @@ export async function postRequest(url, data = {}, config = {}) {
     const res = await httpClient.post(url, data, config);
     return res.data;
   } catch (error) {
-    throw new Error(extractErrorMessage(error, "Failed to send request."));
+    error.message = extractErrorMessage(error, "Failed to send request.");
+    throw error;
   }
 }
 
@@ -105,7 +111,25 @@ export async function putRequest(url, data = {}, config = {}) {
     const res = await httpClient.put(url, data, config);
     return res.data;
   } catch (error) {
-    throw new Error(extractErrorMessage(error, "Failed to update resource."));
+    error.message = extractErrorMessage(error, "Failed to update resource.");
+    throw error;
+  }
+}
+
+/**
+ * Generic PATCH request wrapper
+ * @param {string} url - Target URL/endpoint
+ * @param {any} [data={}] - Request body payload
+ * @param {object} [config={}] - Additional Axios request configuration
+ * @returns {Promise<any>} Response data
+ */
+export async function patchRequest(url, data = {}, config = {}) {
+  try {
+    const res = await httpClient.patch(url, data, config);
+    return res.data;
+  } catch (error) {
+    error.message = extractErrorMessage(error, "Failed to patch resource.");
+    throw error;
   }
 }
 
@@ -120,7 +144,8 @@ export async function deleteRequest(url, config = {}) {
     const res = await httpClient.delete(url, config);
     return res.data;
   } catch (error) {
-    throw new Error(extractErrorMessage(error, "Failed to delete resource."));
+    error.message = extractErrorMessage(error, "Failed to delete resource.");
+    throw error;
   }
 }
 
@@ -142,7 +167,8 @@ export async function uploadRequest(url, formData, config = {}) {
     });
     return res.data;
   } catch (error) {
-    throw new Error(extractErrorMessage(error, "Failed to upload data."));
+    error.message = extractErrorMessage(error, "Failed to upload data.");
+    throw error;
   }
 }
 

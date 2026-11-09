@@ -53,31 +53,30 @@ export default function PdfViewer({
   const [blobUrl, setBlobUrl] = useState(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
 
+  const [prevInitialPage, setPrevInitialPage] = useState(initialPage);
+  const [prevPageCount, setPrevPageCount] = useState(pageCount);
+
+  if (initialPage !== prevInitialPage) {
+    setPrevInitialPage(initialPage);
+    setPageNumber(initialPage);
+    setPageInput(String(initialPage));
+  }
+
+  if (pageCount && pageCount > 0 && pageCount !== prevPageCount) {
+    setPrevPageCount(pageCount);
+    setTotalPages(pageCount);
+  }
+
   const abortControllerRef = useRef(null);
   const blobUrlRef = useRef(null);
 
   const baseUrl = (API_BASE_URL || NamedApiBaseUrl || "http://localhost:5000").replace(/\/$/, "");
 
-  // Update totalPages when prop updates
-  useEffect(() => {
-    if (pageCount && pageCount > 0) {
-      setTotalPages(pageCount);
-    }
-  }, [pageCount]);
-
-  // Sync initialPage when prop changes
-  useEffect(() => {
-    if (initialPage) {
-      setPageNumber(initialPage);
-      setPageInput(String(initialPage));
-    }
-  }, [initialPage]);
-
   // Mount detection for React portal
   useEffect(() => {
-    setMounted(true);
+    const id = requestAnimationFrame(() => setMounted(true));
     return () => {
-      setMounted(false);
+      cancelAnimationFrame(id);
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
@@ -98,8 +97,12 @@ export default function PdfViewer({
     abortControllerRef.current = controller;
 
     let isSubscribed = true;
-    setImageLoading(true);
-    setHasError(false);
+    queueMicrotask(() => {
+      if (isSubscribed) {
+        setImageLoading(true);
+        setHasError(false);
+      }
+    });
 
     const targetUrl = `${baseUrl}/api/rag/documents/${documentId}/page-preview?page=${pageNumber}`;
 

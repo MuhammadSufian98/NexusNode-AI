@@ -56,8 +56,8 @@ const LAYERS = [
       {
         name: "Cohere",
         bg: "bg-[#6A3BE2]",
-        icon: "https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg",
-        isLightSvg: true,
+        text: "cohere",
+        textColor: "text-white",
       },
       {
         name: "Braze",
@@ -100,7 +100,7 @@ export default function PartnersSection() {
   const activeIndex = hoveredIndex ?? 0;
 
   return (
-    <section className="relative z-10 w-full py-20 sm:py-28 lg:py-36 bg-[var(--color-canvas)] select-none border-b border-[var(--color-border)] overflow-hidden font-['PP_Neue_Montreal',Arial,sans-serif]">
+    <section id="security" className="relative z-10 w-full py-20 sm:py-28 lg:py-36 bg-[var(--color-canvas)] select-none border-b border-[var(--color-border)] overflow-hidden font-sans">
       <div className="max-w-[1360px] mx-auto px-6 sm:px-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start pb-16 lg:pb-24 border-b border-slate-200/80">
           <div className="lg:col-span-7">

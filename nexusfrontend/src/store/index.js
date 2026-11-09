@@ -4,5 +4,5 @@ export { useChatStore, default as chatStore } from "./useChatStore";
 export { useOverviewStore, default as overviewStore } from "./useOverviewStore";
 export { useSettingsStore, default as settingsStore } from "./useSettingsStore";
 export { useAuth } from "./authStore";
-export { useProfileStore } from "./profileStore";
-export { useTheme } from "./themeStore";
+export { useProfile, useProfile as useProfileStore } from "./profileStore";
+export { useThemeStore, useThemeStore as useTheme } from "./themeStore";

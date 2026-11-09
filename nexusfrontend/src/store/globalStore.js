@@ -7,15 +7,15 @@ import { useOverviewStore } from "./useOverviewStore";
 import { useSettingsStore } from "./useSettingsStore";
 
 /**
- * @deprecated Legacy composite store hook maintained for backward compatibility.
- * Prefer importing specific slice stores: useUiStore, useDocumentStore, useChatStore, useOverviewStore, useSettingsStore.
+ * @deprecated Deprecated composite store hook.
+ * Directly import specific domain slice stores: useUiStore, useDocumentStore, useChatStore, useOverviewStore, useSettingsStore.
  */
 export const useGlobal = (selector) => {
-  const ui = useUiStore();
-  const doc = useDocumentStore();
-  const chat = useChatStore();
-  const overview = useOverviewStore();
-  const settings = useSettingsStore();
+  const ui = useUiStore.getState();
+  const doc = useDocumentStore.getState();
+  const chat = useChatStore.getState();
+  const overview = useOverviewStore.getState();
+  const settings = useSettingsStore.getState();
 
   const compositeState = {
     // UI State
@@ -33,9 +33,6 @@ export const useGlobal = (selector) => {
     selectedDocument: doc.selectedDocument,
     isUploading: doc.isUploading,
     uploadProgress: doc.uploadProgress,
-    activeTreeData: doc.activeTreeData,
-    isTreeModalOpen: doc.isTreeModalOpen,
-    generatedTreeDocIds: doc.generatedTreeDocIds,
     setDocuments: doc.setDocuments,
     setIsUploading: doc.setIsUploading,
     setSelectedDocument: doc.setSelectedDocument,
@@ -43,9 +40,6 @@ export const useGlobal = (selector) => {
     handleFileUpload: doc.handleFileUpload,
     handleDeleteDoc: doc.handleDeleteDoc,
     selectDocument: doc.selectDocument,
-    fetchGeneratedTreeIds: doc.fetchGeneratedTreeIds,
-    generateOrFetchTree: doc.generateOrFetchTree,
-    closeTreeModal: doc.closeTreeModal,
 
     // Chat State & Actions
     messages: chat.messages,

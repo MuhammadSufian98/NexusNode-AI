@@ -6,7 +6,7 @@ import { documentsApi } from "@/services/documentsApi";
 import { formatDocument, createInitialDocument } from "@/types/schemas";
 
 /**
- * Domain store for Document Vault and Knowledge Tree operations
+ * Domain store for Document Vault operations
  */
 export const useDocumentStore = create((set, get) => ({
   documents: [],
@@ -14,9 +14,6 @@ export const useDocumentStore = create((set, get) => ({
   isUploading: false,
   uploadProgress: 0,
   isLoading: false,
-  activeTreeData: null,
-  isTreeModalOpen: false,
-  generatedTreeDocIds: [],
 
   // Direct Setters
   setDocuments: (documents) => set({ documents }),
@@ -37,11 +34,10 @@ export const useDocumentStore = create((set, get) => ({
         isLoading: false,
       });
 
-      await get().fetchGeneratedTreeIds();
       return mapped;
     } catch (error) {
       set({ isLoading: false });
-      toast.error(error.message || "Failed to load document vault.");
+      toast.error(error.userFriendlyMessage || error.message || "Failed to load document vault.");
       return [];
     }
   },
@@ -50,6 +46,19 @@ export const useDocumentStore = create((set, get) => ({
   handleFileUpload: async (eOrFile) => {
     const file = eOrFile?.target?.files ? eOrFile.target.files[0] : eOrFile;
     if (!file) return null;
+
+    // Validate PDF type and size (< 50MB)
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      toast.error("Invalid file format. Only PDF documents are supported.");
+      return null;
+    }
+
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_SIZE) {
+      toast.error("File exceeds maximum allowed size (50MB).");
+      return null;
+    }
 
     set({ isUploading: true, uploadProgress: 0 });
 
@@ -69,7 +78,15 @@ export const useDocumentStore = create((set, get) => ({
     }));
 
     try {
-      const payload = await documentsApi.uploadDocument(file);
+      const payload = await documentsApi.uploadDocument(file, {
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            set({ uploadProgress: percent });
+          }
+        },
+      });
+
       const uploadedDoc = payload.document || payload;
       const formattedDoc = formatDocument(uploadedDoc);
 
@@ -77,6 +94,7 @@ export const useDocumentStore = create((set, get) => ({
         documents: state.documents.map((doc) =>
           doc.id === tempId ? { ...doc, ...formattedDoc } : doc
         ),
+        uploadProgress: 100,
       }));
 
       toast.success("Document indexed successfully!");
@@ -89,15 +107,19 @@ export const useDocumentStore = create((set, get) => ({
                 ...doc,
                 status: "error",
                 errorMessage:
-                  error.message || "Failed to create embeddings for this PDF",
+                  error.userFriendlyMessage ||
+                  error.message ||
+                  "Failed to create embeddings for this PDF",
               }
             : doc
         ),
       }));
-      toast.error(error.message || "Upload failed");
+      toast.error(error.userFriendlyMessage || error.message || "Upload failed");
       return null;
     } finally {
-      set({ isUploading: false });
+      setTimeout(() => {
+        set({ isUploading: false, uploadProgress: 0 });
+      }, 500);
     }
   },
 
@@ -118,7 +140,7 @@ export const useDocumentStore = create((set, get) => ({
       toast.success("Document removed from vault.");
       return true;
     } catch (error) {
-      toast.error(error.message || "Failed to remove document");
+      toast.error(error.userFriendlyMessage || error.message || "Failed to remove document");
       return false;
     }
   },
@@ -155,54 +177,9 @@ export const useDocumentStore = create((set, get) => ({
       toast.success(res.message || "Vector tier expanded!");
       return formattedDoc;
     } catch (error) {
-      toast.error(error.message || "Failed to expand vector tier");
+      toast.error(error.userFriendlyMessage || error.message || "Failed to expand vector tier");
       return null;
     }
-  },
-
-  // 6. Knowledge Tree Operations
-  fetchGeneratedTreeIds: async () => {
-    try {
-      const data = await documentsApi.getGeneratedTreeIds();
-      set({ generatedTreeDocIds: Array.isArray(data) ? data : [] });
-    } catch (error) {
-      // Fail silently for background check
-    }
-  },
-
-  generateOrFetchTree: async (documentId) => {
-    try {
-      const data = await documentsApi.generateTree(documentId);
-      const treeData = data.treeData || data;
-
-      set({
-        activeTreeData: treeData,
-        isTreeModalOpen: true,
-      });
-
-      const currentIds = get().generatedTreeDocIds || [];
-      if (!currentIds.includes(documentId)) {
-        set({ generatedTreeDocIds: [...currentIds, documentId] });
-      }
-      return treeData;
-    } catch (error) {
-      toast.error(error.message || "Failed to build knowledge tree");
-      return null;
-    }
-  },
-
-  closeTreeModal: () => {
-    set({
-      activeTreeData: null,
-      isTreeModalOpen: false,
-    });
-  },
-
-  openTreeModal: (treeData) => {
-    set({
-      activeTreeData: treeData,
-      isTreeModalOpen: true,
-    });
   },
 }));
 

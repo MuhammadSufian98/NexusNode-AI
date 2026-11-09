@@ -7,7 +7,7 @@ import {
   logoutUser,
   registerUser,
   verifyEmailOtp,
-} from "@/utils/authApi";
+} from "@/services/authApi";
 
 const defaultLoginForm = {
   email: "",
@@ -134,6 +134,11 @@ export const useAuth = create((set, get) => ({
         password: signupForm.password,
       });
 
+      const token = loginPayload?.token || loginPayload?.accessToken || loginPayload?.data?.token;
+      if (token && typeof window !== "undefined") {
+        localStorage.setItem("token", token);
+      }
+
       set({
         user: loginPayload?.user || null,
         isAuthenticated: true,
@@ -159,6 +164,11 @@ export const useAuth = create((set, get) => ({
         email: loginForm.email,
         password: loginForm.password,
       });
+
+      const token = payload?.token || payload?.accessToken || payload?.data?.token;
+      if (token && typeof window !== "undefined") {
+        localStorage.setItem("token", token);
+      }
 
       set({
         user: payload?.user || null,
@@ -227,6 +237,12 @@ export const useAuth = create((set, get) => ({
       await logoutUser();
     } catch {
       // Even if backend logout fails, force local auth reset.
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("jwt");
+      localStorage.removeItem("authToken");
     }
 
     set({

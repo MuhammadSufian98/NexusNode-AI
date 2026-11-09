@@ -188,7 +188,7 @@ const FloatingFooter = () => {
             </span>
             <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-slate-200" />
             <p className="text-[11px] text-slate-400 font-medium uppercase tracking-widest">
-              Sufian's Final Year Project • IUB
+              Sufian&apos;s Final Year Project • IUB
             </p>
           </div>
 

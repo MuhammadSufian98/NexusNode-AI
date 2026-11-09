@@ -50,7 +50,7 @@ export default function NarrativePipeline() {
     <section
       id="pipeline-overview"
       ref={containerRef}
-      className="relative z-20 w-full py-24 sm:py-32 bg-[var(--color-canvas)] text-[var(--color-text-primary)] transition-colors duration-200 overflow-hidden font-['PP_Neue_Montreal',Arial,sans-serif]"
+      className="relative z-20 w-full py-24 sm:py-32 bg-[var(--color-canvas)] text-[var(--color-text-primary)] transition-colors duration-200 overflow-hidden font-sans"
     >
       <div className="max-w-4xl mx-auto px-6 text-center mb-24 lg:mb-32">
         <h2 className="text-4xl sm:text-6xl font-medium tracking-tight text-slate-950 leading-[1.08]">

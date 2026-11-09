@@ -35,11 +35,11 @@ import { extractRawText } from "@/utils/textSanitizers";
 import { truncateText } from "@/utils/formatters";
 import dynamic from "next/dynamic";
 
-const PdfViewer = dynamic(() => import("@/component/PdfViewer"), {
+const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
   ssr: false,
 });
 const CitationInspectorPanel = dynamic(
-  () => import("@/component/dashboard/CitationInspectorPanel"),
+  () => import("@/components/dashboard/CitationInspectorPanel"),
   { ssr: false }
 );
 
@@ -171,10 +171,9 @@ const CustomCitationsAccordion = ({ citations, onSelectCitation }) => {
   const [showAllPills, setShowAllPills] = useState(false);
   const excerptContainerRef = useRef(null);
 
-  if (!citations || citations.length === 0) return null;
-
   // Group / deduplicate citations by page number
   const groupedByPage = useMemo(() => {
+    if (!citations || citations.length === 0) return [];
     const map = new Map();
     citations.forEach((cit) => {
       const pageKey = Number(cit.pageNumber) || 1;
@@ -200,6 +199,8 @@ const CustomCitationsAccordion = ({ citations, onSelectCitation }) => {
 
     return Array.from(map.values()).sort((a, b) => a.pageNumber - b.pageNumber);
   }, [citations]);
+
+  if (!citations || citations.length === 0) return null;
 
   const visiblePills = showAllPills
     ? groupedByPage
@@ -517,6 +518,8 @@ const MessageBubble = React.memo(
 
 MessageBubble.displayName = "MessageBubble";
 
+const EMPTY_ARRAY = [];
+
 // -------------------------------------------------------------
 // MAIN CHAT VIEW
 // -------------------------------------------------------------
@@ -526,10 +529,12 @@ export function ChatView() {
     (state) => state.setSelectedDocument,
   );
   const handleFileUpload = useDocumentStore((state) => state.handleFileUpload);
-  const documents = useDocumentStore((state) => state.documents) || [];
+  const rawDocuments = useDocumentStore((state) => state.documents);
+  const documents = rawDocuments || EMPTY_ARRAY;
   const selectDocument = useDocumentStore((state) => state.selectDocument);
 
-  const messages = useChatStore((state) => state.messages) || [];
+  const rawMessages = useChatStore((state) => state.messages);
+  const messages = rawMessages || EMPTY_ARRAY;
   const sendMessage = useChatStore((state) => state.sendMessage);
   const isProcessing = useChatStore((state) => state.isProcessing);
   const activeConversationId = useChatStore(
@@ -615,15 +620,23 @@ export function ChatView() {
   }, []);
 
   const scrollRef = useRef(null);
+  const isNearBottomRef = useRef(true);
   const uploadInputRef = useRef(null);
   const textareaRef = useRef(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState("");
   const lastLoadedDocId = useRef(null);
 
-  // Auto-scroll on new messages
+  // Track user scroll position so auto-scroll only triggers when near bottom (sticky scroll)
+  const handleFeedScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 120;
+  }, []);
+
+  // Sticky auto-scroll on new message chunks
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && isNearBottomRef.current) {
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior: isProcessing ? "auto" : "smooth",
@@ -954,6 +967,7 @@ export function ChatView() {
         {/* Message Feed Canvas */}
         <div
           ref={scrollRef}
+          onScroll={handleFeedScroll}
           className="flex-1 overflow-y-auto overscroll-contain no-scrollbar p-3.5 sm:p-5 md:p-6 space-y-4 md:space-y-5"
           data-lenis-prevent
         >

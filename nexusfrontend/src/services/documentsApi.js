@@ -8,10 +8,11 @@ import API_BASE_URL from "@/lib/apiBaseUrl";
 
 /**
  * Fetch all documents in the vault
+ * @param {object} [config={}]
  * @returns {Promise<any>}
  */
-export async function fetchDocuments() {
-  return getRequest("/api/rag/documents");
+export async function fetchDocuments(config = {}) {
+  return getRequest("/api/rag/documents", {}, config);
 }
 
 /**
@@ -42,34 +43,6 @@ export async function deleteDocument(id, config = {}) {
 }
 
 /**
- * Get IDs of documents that have generated knowledge trees
- * @param {object} [config={}]
- * @returns {Promise<any>}
- */
-export async function getGeneratedTreeIds(config = {}) {
-  return getRequest("/api/rag/tree/ids", {}, config);
-}
-
-/**
- * Generate or fetch knowledge tree for a specific document
- * @param {string} docId - Document ID
- * @param {object} [config={}]
- * @returns {Promise<any>}
- */
-export async function generateTree(docId, config = {}) {
-  return postRequest(`/api/rag/tree/${docId}`, {}, config);
-}
-
-/**
- * Generate global/master knowledge tree
- * @param {object} [config={}]
- * @returns {Promise<any>}
- */
-export async function generateMasterTree(config = {}) {
-  return postRequest("/api/rag/tree/global", {}, config);
-}
-
-/**
  * Expand vector index tier for a document
  * @param {string} id - Document ID
  * @param {object} [config={}]
@@ -85,12 +58,11 @@ export async function expandVectorTier(id, config = {}) {
  * @returns {string}
  */
 export function getDocumentPdfStreamUrl(id) {
-  return `${API_BASE_URL}/api/rag/documents/${id}/view-pdf`;
+  return `${API_BASE_URL}/api/rag/documents/${id}/preview-stream`;
 }
 
 // Aliases for compatibility
 export const getDocuments = fetchDocuments;
-export const generateOrFetchTree = generateTree;
 
 export const documentsApi = {
   fetchDocuments,
@@ -98,10 +70,6 @@ export const documentsApi = {
   uploadDocument,
   deleteDocument,
   expandVectorTier,
-  getGeneratedTreeIds,
-  generateTree,
-  generateOrFetchTree,
-  generateMasterTree,
   getDocumentPdfStreamUrl,
 };
 

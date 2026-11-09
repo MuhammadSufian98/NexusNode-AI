@@ -1,10 +1,10 @@
 "use client";
 
-import HomeBackground from "@/component/Home/HomeBackground";
-import HeroSection from "@/component/Home/HeroSection";
-import InteractiveShowcase from "@/component/Home/InteractiveShowcase";
-import PartnersSection from "@/component/Home/PartnersSection";
-import NarrativePipeline from "@/component/Home/NarrativePipeline";
+import HomeBackground from "@/components/Home/HomeBackground";
+import HeroSection from "@/components/Home/HeroSection";
+import InteractiveShowcase from "@/components/Home/InteractiveShowcase";
+import PartnersSection from "@/components/Home/PartnersSection";
+import NarrativePipeline from "@/components/Home/NarrativePipeline";
 
 export default function HomePage() {
   return (

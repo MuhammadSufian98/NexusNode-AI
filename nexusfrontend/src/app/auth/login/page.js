@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/store/authStore";
 import Image from "next/image";
 import Link from "next/link";
-import Antigravity from "@/component/Antigravity";
 import LoginForm from "@/components/auth/LoginForm";
 import SignupForm from "@/components/auth/SignupForm";
 import { CheckCircle2 } from "lucide-react";
@@ -15,26 +14,17 @@ const AuthPage = () => {
 
   return (
     <div className="auth-page-root relative h-screen max-h-screen w-full bg-[#fafafa] overflow-hidden flex flex-col">
-      {/* --- GLOBAL ANTIGRAVITY BACKGROUND --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-rose-200/30 blur-[100px] rounded-full" />
-        <div className="absolute top-0 right-[-5%] w-[30%] h-[30%] bg-orange-200/30 blur-[100px] rounded-full" />
-        <Antigravity
-          count={400}
-          magnetRadius={4}
-          ringRadius={4}
-          waveSpeed={0.6}
-          waveAmplitude={1}
-          particleSize={2}
-          lerpSpeed={0.09}
-          color="#E11D48"
-          autoAnimate
-          particleVariance={1}
-          rotationSpeed={0}
-          depthFactor={1}
-          pulseSpeed={13}
-          particleShape="capsule"
-          fieldStrength={2}
+      {/* --- LIGHTWEIGHT CSS NEURAL MESH BACKGROUND --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] bg-rose-300/25 blur-[120px] rounded-full" />
+        <div className="absolute top-0 right-[-10%] w-[35%] h-[35%] bg-orange-300/20 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] left-[25%] w-[40%] h-[40%] bg-rose-400/15 blur-[140px] rounded-full" />
+        <div
+          className="absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage: `radial-gradient(rgba(225, 29, 72, 0.2) 1px, transparent 1px)`,
+            backgroundSize: "24px 24px",
+          }}
         />
       </div>
 

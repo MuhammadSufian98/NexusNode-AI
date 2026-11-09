@@ -14,24 +14,21 @@ import {
   Clock,
   AlertTriangle,
   FileCheck,
-  Network,
+  Eye,
   UploadCloud,
-  FileUp,
   Loader2,
-  X
+  X,
 } from "lucide-react";
-import { useDocumentStore, useUiStore, useOverviewStore } from "@/store";
+import { toast } from "react-hot-toast";
+import { useDocumentStore, useUiStore } from "@/store";
 import { formatDate } from "@/utils/formatters";
-import API_BASE_URL from "@/lib/apiBaseUrl";
 import dynamic from "next/dynamic";
 
-const PdfViewer = dynamic(() => import("@/component/PdfViewer"), {
+const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
   ssr: false,
 });
-const KnowledgeTreeModal = dynamic(
-  () => import("@/components/KnowledgeTreeModal"),
-  { ssr: false },
-);
+
+const MAX_PDF_BYTES = 50 * 1024 * 1024; // 50MB
 
 const containerVariants = {
   initial: { opacity: 0 },
@@ -53,9 +50,7 @@ const itemVariants = {
 
 const DocumentCard = React.memo(function DocumentCard({
   doc,
-  hasTree,
   onOpenPdf,
-  onGenerateTree,
   onSelectDoc,
   onDeleteDoc,
   onExpandTier,
@@ -99,7 +94,7 @@ const DocumentCard = React.memo(function DocumentCard({
       }`}
     >
       <div>
-        {/* Top Row: Icon + Tree Trigger + Status */}
+        {/* Top Row: Icon + Status */}
         <div className="flex items-start justify-between gap-2 mb-2.5">
           <div className="flex items-center gap-2">
             <div
@@ -111,25 +106,6 @@ const DocumentCard = React.memo(function DocumentCard({
             >
               <FileText size={16} />
             </div>
-
-            {/* Knowledge Graph Tree Trigger */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!isReady) return;
-                onGenerateTree(docId);
-              }}
-              disabled={!isReady}
-              className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none active:scale-[0.98] transition-transform duration-100 ease-out ${
-                hasTree
-                  ? "bg-rose-50 border-rose-200 text-rose-600"
-                  : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300"
-              }`}
-              title="Knowledge Graph Tree"
-            >
-              <Network size={13} />
-            </button>
           </div>
 
           {/* Status Badges */}
@@ -172,9 +148,9 @@ const DocumentCard = React.memo(function DocumentCard({
         {/* Document Title */}
         <h3
           className="font-bold text-xs text-slate-900 truncate leading-snug group-hover:text-rose-600 transition-colors"
-          title={doc.name}
+          title={doc.name || doc.title}
         >
-          {doc.name}
+          {doc.name || doc.title || "Document.pdf"}
         </h3>
 
         {/* Specs / Metadata */}
@@ -232,6 +208,20 @@ const DocumentCard = React.memo(function DocumentCard({
             onClick={(e) => {
               e.stopPropagation();
               if (!isReady) return;
+              onOpenPdf(doc);
+            }}
+            disabled={!isReady}
+            className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors cursor-pointer disabled:opacity-30"
+            title="Preview PDF"
+          >
+            <Eye size={13} />
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isReady) return;
               onSelectDoc(doc);
             }}
             disabled={!isReady}
@@ -258,20 +248,19 @@ const DocumentCard = React.memo(function DocumentCard({
   );
 });
 
-export function DocumentsView({ isUploading = false, uploadProgress = 0 }) {
-  const {
-    documents = [],
-    handleFileUpload: uploadDocAction,
-    handleDeleteDoc: deleteDocAction,
-    expandVectorTier,
-    generatedTreeDocIds = [],
-    generateOrFetchTree,
-    selectDocument,
-  } = useDocumentStore();
+const EMPTY_ARRAY = [];
+
+export function DocumentsView() {
+  const rawDocuments = useDocumentStore((state) => state.documents);
+  const documents = rawDocuments || EMPTY_ARRAY;
+  const uploadDocAction = useDocumentStore((state) => state.handleFileUpload);
+  const deleteDocAction = useDocumentStore((state) => state.handleDeleteDoc);
+  const expandVectorTier = useDocumentStore((state) => state.expandVectorTier);
+  const selectDocument = useDocumentStore((state) => state.selectDocument);
+  const isUploading = useDocumentStore((state) => state.isUploading);
+  const uploadProgress = useDocumentStore((state) => state.uploadProgress);
+
   const setActiveSection = useUiStore((state) => state.setActiveSection);
-  const fetchOverviewData = useOverviewStore(
-    (state) => state.fetchOverviewData,
-  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewerConfig, setViewerConfig] = useState({
@@ -284,35 +273,46 @@ export function DocumentsView({ isUploading = false, uploadProgress = 0 }) {
   const [dragCounter, setDragCounter] = useState(0);
   const fileInputRef = useRef(null);
 
-  const handleFileUpload = async (e) => {
-    const res = await uploadDocAction(e);
-    if (res && typeof fetchOverviewData === "function") {
-      fetchOverviewData();
-    }
-    return res;
-  };
+  const validateAndProcessFile = useCallback(
+    (file) => {
+      if (!file) return;
 
-  const handleDeleteDoc = async (id) => {
-    const res = await deleteDocAction(id);
-    if (res && typeof fetchOverviewData === "function") {
-      fetchOverviewData();
+      const isPdf =
+        file.type === "application/pdf" ||
+        file.name.toLowerCase().endsWith(".pdf");
+
+      if (!isPdf) {
+        toast.error("Invalid file format. Please upload a PDF document.");
+        return;
+      }
+
+      if (file.size > MAX_PDF_BYTES) {
+        toast.error("File exceeds maximum allowed size (50MB).");
+        return;
+      }
+
+      uploadDocAction(file);
+    },
+    [uploadDocAction]
+  );
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      validateAndProcessFile(file);
     }
-    return res;
+    e.target.value = "";
   };
 
   const handleOpenViewer = useCallback((doc) => {
     if (!doc) return;
-    // MongoDB uses _id, while transformed objects might use id
     const docId = doc._id || doc.id;
-    if (!docId) {
-      console.error("[DocumentsView] Document missing valid ID:", doc);
-      return;
-    }
+    if (!docId) return;
 
     setViewerConfig({
       isOpen: true,
       documentId: String(docId),
-      name: doc.name || doc.fileName || "document.pdf",
+      name: doc.name || doc.fileName || doc.title || "document.pdf",
       pageCount: Number(doc.pages || doc.totalPageCount || 0),
     });
   }, []);
@@ -328,11 +328,13 @@ export function DocumentsView({ isUploading = false, uploadProgress = 0 }) {
 
   const filteredDocs = useMemo(() => {
     return documents.filter((doc) =>
-      (doc.name || "").toLowerCase().includes(searchQuery.toLowerCase()),
+      (doc.name || doc.title || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
     );
   }, [documents, searchQuery]);
 
-  // Robust counter-based drag detection to prevent flicker
+  // Drag-and-drop detection with counter
   const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -366,9 +368,9 @@ export function DocumentsView({ isUploading = false, uploadProgress = 0 }) {
     e.stopPropagation();
     setDragCounter(0);
     setIsDraggingOver(false);
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const fakeEvent = { target: { files: e.dataTransfer.files } };
-      handleFileUpload(fakeEvent);
+      validateAndProcessFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -386,7 +388,7 @@ export function DocumentsView({ isUploading = false, uploadProgress = 0 }) {
         type="file"
         accept="application/pdf"
         className="hidden"
-        onChange={handleFileUpload}
+        onChange={handleFileInputChange}
       />
 
       {/* TOP HEADER CONTROLS */}
@@ -405,12 +407,12 @@ export function DocumentsView({ isUploading = false, uploadProgress = 0 }) {
               </span>
             </div>
             <p className="font-mono text-[10px] text-slate-400">
-              Verified ground-truth bounding box repository
+              Grounded PDF vault for low-latency neural retrieval
             </p>
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar & Upload Button */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1 sm:w-64">
             <Search
@@ -421,123 +423,89 @@ export function DocumentsView({ isUploading = false, uploadProgress = 0 }) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search documents or tags..."
-              className="w-full bg-white/70 border border-slate-200/80 rounded-xl py-1.5 pl-8 pr-3 text-xs font-medium text-slate-800 focus:outline-none focus:border-rose-400 focus:bg-white transition-colors placeholder:text-slate-400"
+              placeholder="Filter by document name..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200/90 rounded-xl outline-none focus:border-rose-400 font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-rose-600 via-rose-500 to-orange-500 text-white rounded-xl text-xs font-bold shadow-xs active:scale-[0.98] transition-transform duration-100 ease-out cursor-pointer shrink-0"
+          >
+            <Plus size={14} />
+            <span className="hidden sm:inline">Upload PDF</span>
+            <span className="sm:hidden">Upload</span>
+          </button>
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* GRID: UPLOAD CARD SITS BESIDE THE FIRST DOCUMENT CARD     */}
-      {/* ========================================================= */}
+      {/* STAGE CONTAINER WITH DRAG AND DROP */}
       <div
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain no-scrollbar pr-0.5 pb-6"
-        data-lenis-prevent
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar relative rounded-2xl"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-          {/* 1. DEDICATED INGESTION CARD (Exact matching dimensions) */}
+        {/* DRAG-AND-DROP OVERLAY BACKDROP */}
+        <AnimatePresence>
+          {isDraggingOver && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-rose-50/90 border-2 border-dashed border-rose-400 rounded-2xl flex flex-col items-center justify-center gap-2 backdrop-blur-2xs"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center text-rose-600">
+                <UploadCloud size={24} />
+              </div>
+              <p className="text-sm font-bold text-slate-900">
+                Drop your PDF document here
+              </p>
+              <p className="text-xs text-slate-500 font-medium">
+                Maximum file size: 50MB (PDF only)
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* DOCUMENT CARDS GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {/* UPLOAD CARD TRIGGER */}
           <motion.div
             variants={itemVariants}
-            onDragEnter={handleDragEnter}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            animate={{
-              scale: isDraggingOver ? 1.02 : 1,
-              borderColor: isDraggingOver
-                ? "rgba(225, 29, 72, 0.9)"
-                : "rgba(226, 232, 240, 0.8)",
-              backgroundColor: isDraggingOver
-                ? "rgba(255, 241, 242, 0.8)"
-                : "rgba(255, 255, 255, 0.45)",
-            }}
-            transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className={`border-2 border-dashed rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-colors group relative overflow-hidden min-h-[178px] ${
-              filteredDocs.length === 0 ? "col-span-full md:col-span-2" : ""
-            }`}
+            className="border border-dashed border-slate-300 hover:border-rose-400 bg-white/40 hover:bg-rose-50/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center gap-2 cursor-pointer transition-colors min-h-[178px] group"
           >
-            {/* Active upload progress rail */}
-            {isUploading && (
-              <div className="absolute top-0 inset-x-0 h-1 bg-slate-100">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-rose-600 to-orange-500"
-                  animate={{ width: `${uploadProgress}%` }}
-                  transition={{ ease: "easeOut", duration: 0.2 }}
-                />
-              </div>
-            )}
-
-            {/* Top row */}
-            <div className="flex items-start justify-between gap-2">
-              <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${
-                  isDraggingOver
-                    ? "bg-rose-500 text-white border-rose-600 scale-105"
-                    : "bg-white border-slate-200 text-slate-600 group-hover:text-rose-600 group-hover:border-rose-200"
-                }`}
-              >
-                {isUploading ? (
-                  <Loader2 size={18} className="animate-spin text-rose-600" />
-                ) : isDraggingOver ? (
-                  <FileUp size={18} />
-                ) : (
-                  <UploadCloud size={18} />
-                )}
-              </div>
-
-              <span className="font-mono text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60">
-                PDF 1.4+
-              </span>
+            <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-rose-100 text-slate-400 group-hover:text-rose-600 flex items-center justify-center transition-colors">
+              <Plus size={20} />
             </div>
-
-            {/* Middle Prompt */}
-            <div className="my-2">
-              <h3 className="font-bold text-xs text-slate-900 group-hover:text-rose-600 transition-colors leading-snug">
-                {isDraggingOver
-                  ? "Drop PDF to Ingest"
-                  : isUploading
-                    ? `Indexing Nodes (${uploadProgress}%)`
-                    : "Upload or Drop PDF"}
-              </h3>
-              <p className="font-mono text-[9px] text-slate-400 mt-1 line-clamp-2">
-                {isDraggingOver
-                  ? "Release file into runtime memory"
-                  : "Drag file here or click to browse local storage"}
+            <div>
+              <p className="text-xs font-bold text-slate-800 group-hover:text-rose-600 transition-colors">
+                Index New PDF
               </p>
-            </div>
-
-            {/* Bottom Row */}
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-              <span className="font-mono text-[9px] text-slate-400">
-                Max 50MB
-              </span>
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-rose-600">
-                <Plus size={12} />
-                <span>Add Doc</span>
-              </div>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Drag and drop or click to browse
+              </p>
             </div>
           </motion.div>
 
-          {/* 2. DOCUMENT CARDS */}
+          {/* DOCUMENT CARDS */}
           <AnimatePresence>
             {filteredDocs.map((doc) => {
               const docId = doc.id || doc._id;
-              const hasTree = generatedTreeDocIds?.includes(docId);
 
               return (
                 <DocumentCard
                   key={docId}
                   doc={doc}
-                  hasTree={hasTree}
                   onOpenPdf={handleOpenViewer}
-                  onGenerateTree={generateOrFetchTree}
                   onSelectDoc={(d) => {
                     selectDocument(d);
                     setActiveSection("chat");
                   }}
-                  onDeleteDoc={handleDeleteDoc}
+                  onDeleteDoc={deleteDocAction}
                   onExpandTier={expandVectorTier}
                 />
               );
@@ -546,17 +514,14 @@ export function DocumentsView({ isUploading = false, uploadProgress = 0 }) {
         </div>
       </div>
 
-      {/* PDF / IMAGE PREVIEW MODAL */}
+      {/* PDF VIEWER MODAL */}
       <PdfViewer
         isOpen={viewerConfig.isOpen}
-        onClose={() => setViewerConfig((prev) => ({ ...prev, isOpen: false }))}
+        onClose={handleCloseViewer}
         documentId={viewerConfig.documentId}
         fileName={viewerConfig.name}
         pageCount={viewerConfig.pageCount}
       />
-
-      {/* KNOWLEDGE TREE MODAL */}
-      <KnowledgeTreeModal />
     </motion.div>
   );
 }

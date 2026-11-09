@@ -1,16 +1,16 @@
 import { create } from "zustand";
 
 export const PALETTES = {
-  // 1. Signature NexusNode AI (Recommended Premium Default)
+  // 1. Signature NexusNode AI (Light)
   nexusWarm: {
     id: "nexus-warm",
     name: "Nexus Obsidian & Warm Sunset",
-    main: "#E11D48",        // Primary Rose 600
-    mainHover: "#BE123C",   // Rose 700
-    mid: "#F97316",         // Orange 500
-    highlight: "#F59E0B",   // Amber 500
-    accentSuccess: "#10B981",// Emerald 500 (Truth/Grounding)
-    bgCanvas: "#FAF9F6",    // Editorial Soft Linen
+    main: "#E11D48",
+    mainHover: "#BE123C",
+    mid: "#F97316",
+    highlight: "#F59E0B",
+    accentSuccess: "#10B981",
+    bgCanvas: "#FAF9F6",
     bgSurface: "#FFFFFF",
     borderBase: "rgba(226, 232, 240, 0.8)",
     textPrimary: "#0F172A",
@@ -18,24 +18,7 @@ export const PALETTES = {
     glowShadow: "rgba(225, 29, 72, 0.15)",
   },
 
-  // 2. The Golden Angle Palette (If you want to test the generated complementary look)
-  calculatedComplementary: {
-    id: "calculated-comp",
-    name: "Calculated Complementary",
-    main: "#E11D48",
-    mainHover: "#C0163B",
-    mid: "#946B74",
-    highlight: "#1DE12D",
-    accentSuccess: "#0E7117",
-    bgCanvas: "#FBF9FA",
-    bgSurface: "#FFFFFF",
-    borderBase: "rgba(148, 107, 116, 0.2)",
-    textPrimary: "#1C1416",
-    textMuted: "#946B74",
-    glowShadow: "rgba(225, 29, 72, 0.18)",
-  },
-
-  // 3. Cyber Obsidian (Monochrome Deep Dark Mode)
+  // 2. Cyber Obsidian (Dark Mode)
   cyberObsidian: {
     id: "cyber-obsidian",
     name: "Cyber Obsidian Dark",
@@ -54,8 +37,61 @@ export const PALETTES = {
 };
 
 export const useThemeStore = create((set, get) => ({
+  theme: "light",
   activePaletteKey: "nexusWarm",
   palette: PALETTES.nexusWarm,
+
+  // Initialize theme from storage
+  initTheme: () => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem("nn_theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initialTheme = stored || (prefersDark ? "dark" : "light");
+
+    const root = document.documentElement;
+    if (initialTheme === "dark") {
+      root.classList.add("dark");
+      set({
+        theme: "dark",
+        activePaletteKey: "cyberObsidian",
+        palette: PALETTES.cyberObsidian,
+      });
+      get().applyCssVariables(PALETTES.cyberObsidian);
+    } else {
+      root.classList.remove("dark");
+      set({
+        theme: "light",
+        activePaletteKey: "nexusWarm",
+        palette: PALETTES.nexusWarm,
+      });
+      get().applyCssVariables(PALETTES.nexusWarm);
+    }
+  },
+
+  // Set explicit theme ('light' | 'dark')
+  setTheme: (newTheme) => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("nn_theme", newTheme);
+    const root = document.documentElement;
+
+    if (newTheme === "dark") {
+      root.classList.add("dark");
+      set({
+        theme: "dark",
+        activePaletteKey: "cyberObsidian",
+        palette: PALETTES.cyberObsidian,
+      });
+      get().applyCssVariables(PALETTES.cyberObsidian);
+    } else {
+      root.classList.remove("dark");
+      set({
+        theme: "light",
+        activePaletteKey: "nexusWarm",
+        palette: PALETTES.nexusWarm,
+      });
+      get().applyCssVariables(PALETTES.nexusWarm);
+    }
+  },
 
   // Set predefined palette
   setPalette: (paletteKey) => {
@@ -71,7 +107,7 @@ export const useThemeStore = create((set, get) => ({
     get().applyCssVariables(updated);
   },
 
-  // Injects CSS variables onto :root for universal CSS / Tailwind use
+  // Injects CSS variables onto :root
   applyCssVariables: (tokens) => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
@@ -88,3 +124,6 @@ export const useThemeStore = create((set, get) => ({
     root.style.setProperty("--color-glow", tokens.glowShadow);
   },
 }));
+
+export const useTheme = useThemeStore;
+export default useThemeStore;
